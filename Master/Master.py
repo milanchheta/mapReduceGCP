@@ -28,12 +28,12 @@ def init_cluster(numberOfMappers, numberOfReducers):
     dataMap[uniqueId] = {}
 
     # initialize by connecting to the kvstore server
-    dataStoreObj = xmlrpc.client.ServerProxy(
-        'http://' + parser.get('address', 'keyValueIp') + ':' +
-        parser.get('address', 'keyValuePort'),
-        allow_none=True)
-    workerObj = xmlrpc.client.ServerProxy('http://localhost:9002',
-                                          allow_none=True)
+    # dataStoreObj = xmlrpc.client.ServerProxy(
+    #     'http://' + parser.get('address', 'keyValueIp') + ':' +
+    #     parser.get('address', 'keyValuePort'),
+    #     allow_none=True)
+    # workerObj = xmlrpc.client.ServerProxy('http://localhost:9002',
+    #                                       allow_none=True)
 
     #CREATE INSTANCES MAPPER EQUALS
     #STORE INSTANCES DATA IN dataMap[uniqueId]["workerAddress"] dataMap[uniqueId]["workerName"]
@@ -42,14 +42,14 @@ def init_cluster(numberOfMappers, numberOfReducers):
 
     #CONNECT TO INSTANCES
     #STORE CLIENT OBJ IN dataMap[uniqueId]["workerObj"]
-    dataMap[uniqueId]["workerObj"] = [workerObj, workerObj, workerObj]
+    # dataMap[uniqueId]["workerObj"] = [workerObj, workerObj, workerObj]
     dataMap[uniqueId]["workerStatus"] = ['idle', 'idle', 'idle']
 
     #initialize data
     dataMap[uniqueId]["mapperInput"] = {}
     dataMap[uniqueId]["n_mappers"] = numberOfMappers
     dataMap[uniqueId]["n_reducers"] = numberOfReducers
-    dataMap[uniqueId]["kvObj"] = dataStoreObj
+    # dataMap[uniqueId]["kvObj"] = dataStoreObj
 
     #create folder in keyvalue
     dataMap[uniqueId]["kvObj"].DataStore("init " + uniqueId + "\n")
@@ -257,13 +257,15 @@ def inputDataProcessing(uniqueId, inputPath):
 
 if __name__ == '__main__':
     parser = ConfigParser()
-    parser.read('config.ini')
+
+    # parser.read('config.ini')
+
 
     class RequestHandler(SimpleXMLRPCRequestHandler):
         rpc_paths = ('/RPC2', )
 
-    ipAddress = parser.get('address', 'ip')
-    portNumber = int(parser.get('address', 'port'))
+    ipAddress = ""
+    portNumber = 9000
     server = SimpleXMLRPCServer((ipAddress, portNumber),
                                 requestHandler=RequestHandler,
                                 allow_none=True)
@@ -276,4 +278,5 @@ if __name__ == '__main__':
         print('Master running')
         server.serve_forever()
     except Exception:
-        print('Error while running the server')
+        server.server_close()
+        print('Closing the server')
