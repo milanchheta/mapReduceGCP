@@ -23,39 +23,40 @@ def destroy_cluster(uniqueId):
 
 #init cluster api
 def init_cluster(numberOfMappers, numberOfReducers):
-    global dataMap
-    uniqueId = str(uuid.uuid1())
-    dataMap[uniqueId] = {}
+    print("Incoming request")
+    # global dataMap
+    # uniqueId = str(uuid.uuid1())
+    # dataMap[uniqueId] = {}
 
-    # initialize by connecting to the kvstore server
-    # dataStoreObj = xmlrpc.client.ServerProxy(
-    #     'http://' + parser.get('address', 'keyValueIp') + ':' +
-    #     parser.get('address', 'keyValuePort'),
-    #     allow_none=True)
-    # workerObj = xmlrpc.client.ServerProxy('http://localhost:9002',
-    #                                       allow_none=True)
+    # # initialize by connecting to the kvstore server
+    # # dataStoreObj = xmlrpc.client.ServerProxy(
+    # #     'http://' + parser.get('address', 'keyValueIp') + ':' +
+    # #     parser.get('address', 'keyValuePort'),
+    # #     allow_none=True)
+    # # workerObj = xmlrpc.client.ServerProxy('http://localhost:9002',
+    # #                                       allow_none=True)
 
-    #CREATE INSTANCES MAPPER EQUALS
-    #STORE INSTANCES DATA IN dataMap[uniqueId]["workerAddress"] dataMap[uniqueId]["workerName"]
-    dataMap[uniqueId]["workerAddress"] = [0, 1, 2]
-    dataMap[uniqueId]["workerName"] = [0, 1, 2]
+    # #CREATE INSTANCES MAPPER EQUALS
+    # #STORE INSTANCES DATA IN dataMap[uniqueId]["workerAddress"] dataMap[uniqueId]["workerName"]
+    # dataMap[uniqueId]["workerAddress"] = [0, 1, 2]
+    # dataMap[uniqueId]["workerName"] = [0, 1, 2]
 
-    #CONNECT TO INSTANCES
-    #STORE CLIENT OBJ IN dataMap[uniqueId]["workerObj"]
-    # dataMap[uniqueId]["workerObj"] = [workerObj, workerObj, workerObj]
-    dataMap[uniqueId]["workerStatus"] = ['idle', 'idle', 'idle']
+    # #CONNECT TO INSTANCES
+    # #STORE CLIENT OBJ IN dataMap[uniqueId]["workerObj"]
+    # # dataMap[uniqueId]["workerObj"] = [workerObj, workerObj, workerObj]
+    # dataMap[uniqueId]["workerStatus"] = ['idle', 'idle', 'idle']
 
-    #initialize data
-    dataMap[uniqueId]["mapperInput"] = {}
-    dataMap[uniqueId]["n_mappers"] = numberOfMappers
-    dataMap[uniqueId]["n_reducers"] = numberOfReducers
-    # dataMap[uniqueId]["kvObj"] = dataStoreObj
+    # #initialize data
+    # dataMap[uniqueId]["mapperInput"] = {}
+    # dataMap[uniqueId]["n_mappers"] = numberOfMappers
+    # dataMap[uniqueId]["n_reducers"] = numberOfReducers
+    # # dataMap[uniqueId]["kvObj"] = dataStoreObj
 
-    #create folder in keyvalue
-    dataMap[uniqueId]["kvObj"].DataStore("init " + uniqueId + "\n")
+    # #create folder in keyvalue
+    # dataMap[uniqueId]["kvObj"].DataStore("init " + uniqueId + "\n")
 
     # return uniqueId
-    return uniqueId
+    return "uniqueId"
 
 
 def run_mapred(uniqueId, inputPath, mapFunction, reducerFunction, outputPath):
