@@ -3,7 +3,7 @@ from configparser import ConfigParser
 import json
 parser = ConfigParser()
 parser.read('config.ini')
-ipAddress = parser.get('address', 'ip')
+ipAddress = "10.128.0.3"
 portNumber = parser.get('address', 'port')
 intm = xmlrpc.client.ServerProxy(('http://' + ipAddress + ':' + portNumber),
                                  allow_none=True)
