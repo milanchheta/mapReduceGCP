@@ -266,7 +266,7 @@ if __name__ == '__main__':
         rpc_paths = ('/RPC2', )
 
     ipAddress = ""
-    portNumber = 9000
+    portNumber = 3389
     server = SimpleXMLRPCServer((ipAddress, portNumber),
                                 requestHandler=RequestHandler,
                                 allow_none=True)
@@ -276,7 +276,7 @@ if __name__ == '__main__':
 
     #run the rpc server
     try:
-        print('Master running')
+        print('Master running on port', portNumber)
         server.serve_forever()
     except Exception:
         server.server_close()
