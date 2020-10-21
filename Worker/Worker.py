@@ -78,7 +78,7 @@ def worker(uniqueId, worker, file, passedFunction, caller, kvIP, taskNumber=0):
     }
     ##connect to the keyvaluestore
     dataStoreObj = xmlrpc.client.ServerProxy(
-        'http://' + str(kvIP) + ':' + parser.get('address', 'keyValuePort'),
+        'http://' + kvIP + ':' + parser.get('address', 'keyValuePort'),
         allow_none=True)
 
     result = getInputData(file, dataStoreObj)
