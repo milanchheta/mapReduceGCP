@@ -1,5 +1,3 @@
-*.ini
-
 .venv
 venv/
 service-account.json
