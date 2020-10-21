@@ -64,7 +64,7 @@ def getInputData(file, dataStoreObj):
     return jsonData
 
 
-def worker(uniqueId, worker, file, passedFunction, caller, taskNumber=0):
+def worker(uniqueId, worker, file, passedFunction, caller, kvIP, taskNumber=0):
     ##function map of available applications
     functionMap = {
         "mapper": {
@@ -78,8 +78,7 @@ def worker(uniqueId, worker, file, passedFunction, caller, taskNumber=0):
     }
     ##connect to the keyvaluestore
     dataStoreObj = xmlrpc.client.ServerProxy(
-        'http://' + parser.get('address', 'keyValueIp') + ':' +
-        parser.get('address', 'keyValuePort'),
+        'http://' + str(kvIP) + ':' + parser.get('address', 'keyValuePort'),
         allow_none=True)
 
     result = getInputData(file, dataStoreObj)
@@ -107,9 +106,8 @@ if __name__ == '__main__':
     class RequestHandler(SimpleXMLRPCRequestHandler):
         rpc_paths = ('/RPC2', )
 
-    ipAddress = parser.get('address', 'ip')
     portNumber = int(parser.get('address', 'port'))
-    server = SimpleXMLRPCServer((ipAddress, portNumber),
+    server = SimpleXMLRPCServer(("", portNumber),
                                 requestHandler=RequestHandler,
                                 allow_none=True)
     server.register_introspection_functions()
