@@ -131,9 +131,8 @@ if __name__ == '__main__':
     class RequestHandler(SimpleXMLRPCRequestHandler):
         rpc_paths = ('/RPC2', )
 
-    ipAddress = parser.get('address', 'ip')
     portNumber = int(parser.get('address', 'port'))
-    server = SimpleXMLRPCServer((ipAddress, portNumber),
+    server = SimpleXMLRPCServer(("", portNumber),
                                 requestHandler=RequestHandler,
                                 allow_none=True)
     server.register_introspection_functions()
