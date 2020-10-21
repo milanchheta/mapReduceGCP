@@ -76,7 +76,12 @@ def getInputData(file, dataStoreObj):
 
 
 def worker(uniqueId, worker, file, passedFunction, caller, kvIP, taskNumber=0):
-    logger.info("called worker")
+    logger.info("called worker with worker number %s", worker)
+    logger.info("called worker with task number %s", taskNumber)
+    logger.info("called worker with file name %s", file)
+    logger.info("called worker with funciton %s", passedFunction)
+    logger.info("called worker from %s", caller)
+
     ##function map of available applications
     functionMap = {
         "mapper": {
@@ -98,7 +103,6 @@ def worker(uniqueId, worker, file, passedFunction, caller, kvIP, taskNumber=0):
     result = getInputData(file, dataStoreObj)
 
     if caller == "mapper":
-        logger.info("called by mapper")
         for file in result:
             filename = file
             res = result[filename]
@@ -106,12 +110,11 @@ def worker(uniqueId, worker, file, passedFunction, caller, kvIP, taskNumber=0):
         path = "Data/" + uniqueId + "/mapperOutput/output" + str(worker) + str(
             taskNumber) + ".json"
     if caller == "reducer":
-        logger.info("called by reducer")
         resultData = functionMap[caller][passedFunction](result)
         path = "Data/" + uniqueId + "/reducerOutput/output" + str(
             worker) + ".json"
 
-    logger.info("storing mapper oiutput to kv store")
+    logger.info("storing mapper oiutput to kv store %s", path)
 
     ##Send data to keyvalue store
     storeOutputData(dataStoreObj, resultData, path)
