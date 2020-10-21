@@ -12,15 +12,17 @@ from configparser import ConfigParser
 import uuid
 from gcp import GCP
 import logging
+import time
 
 dataMap = {}
 
 
 def destroy_cluster(uniqueId):
-    #destory vms dataMap[uniqueId]["workerAddress"]
-    #disconnect from kv store dataMap[uniqueId]["kvObj"]
-    #clear data from kv store dataMap[uniqueId]["kvObj"]  Data/uniqueId/
-    pass
+    gcpObj = GCP()
+    global dataMap
+    for worker in dataMap[uniqueId]["workerName"]:
+        gcpObj.delete_instance(parser.get('gcp', 'project_id'),
+                               parser.get('gcp', 'zone'), worker)
 
 
 def connectToKVStore():
@@ -89,7 +91,6 @@ def spawnWorkers(worker, workerQueue):
                 break
         except Exception as e:
             logger.info("error creating a worker")
-
             raise e
 
 
@@ -127,7 +128,7 @@ def init_cluster(numberOfMappers, numberOfReducers):
     tasks = []
     logger.info("creating workers....")
 
-    for worker in range(numberOfMappers):
+    for worker in range(max(numberOfMappers, numberOfReducers)):
         workerQueue = Queue()
         p = Process(target=spawnWorkers, args=(worker, workerQueue))
         p.start()
@@ -167,8 +168,8 @@ def init_cluster(numberOfMappers, numberOfReducers):
             dataMap[uniqueId]["kvObj"].DataStore("init " + uniqueId + "\n")
             break
         except:
+            time.sleep(15)
             logger.info("error initializing kv folders....")
-
             continue
     logger.info("kv folders initialized....")
     return uniqueId
@@ -184,6 +185,8 @@ def run_mapred(uniqueId, inputPath, mapFunction, reducerFunction, outputPath):
     logger.info("distibuting tasks among mappers...")
     tasks = []
     for worker in dataMap[uniqueId]["mapperInput"]:
+        logger.info("distibuting a task among mapper number %s...", worker)
+
         p = Process(target=callMapperWorkers,
                     args=(uniqueId, worker,
                           dataMap[uniqueId]["mapperInput"][worker],
@@ -196,15 +199,22 @@ def run_mapred(uniqueId, inputPath, mapFunction, reducerFunction, outputPath):
     logger.info("All a mapper done...")
 
     #combine mapper output
-    intermediateCombiner(uniqueId)
+    time.sleep(15)
 
-    ##ADJUST VMS
-    if dataMap[uniqueId]["n_reducers"] < dataMap[uniqueId]["n_mappers"]:
-        #remove vms
-        pass
-    elif dataMap[uniqueId]["n_reducers"] < dataMap[uniqueId]["n_mappers"]:
-        #add vms
-        pass
+    intermediateCombiner(uniqueId)
+    time.sleep(15)
+
+    # ##ADJUST VMS
+    # if dataMap[uniqueId]["n_reducers"] < dataMap[uniqueId]["n_mappers"]:
+    #     # [n_reducers:]
+    #     #remove vms
+
+    #     pass
+    # elif dataMap[uniqueId]["n_reducers"] > dataMap[uniqueId]["n_mappers"]:
+    #     #add vms
+    #     # [n_mappers:n_reducers]
+
+    #     pass
 
     #distribute reducer tasks
     callReducerWorkers(uniqueId, reducerFunction)
@@ -252,6 +262,7 @@ def callReducerWorkers(uniqueId, reducerFunction):
 
 def intermediateCombiner(uniqueId):
     global dataMap
+    print(dataMap)
 
     logger.info("Called intermediate combiner...")
     mapperOutput = []
@@ -300,7 +311,7 @@ def callMapperWorkers(uniqueId, worker, files, mapFunction):
     global dataMap
 
     for i in range(len(files)):
-        logger.info("calling a mapper...")
+        logger.info("calling a mapper with task...%s", i)
 
         #RETREIVE SAVED MAPPER OBJECT
         obj = dataMap[uniqueId]["workerObj"][worker]
@@ -350,6 +361,8 @@ def inputDataProcessing(uniqueId, inputPath):
                     break
                 except:
                     logger.info("error storing chunks in kv store....")
+                    time.sleep(15)
+
                     continue
                     logger.info("stored chunks in kv store....")
 
@@ -403,6 +416,8 @@ def inputDataProcessing(uniqueId, inputPath):
                     break
                 except:
                     logger.info("error storing chunks in kv store....")
+                    time.sleep(15)
+
                     continue
             logger.info("stored chunks in kv store....")
 
@@ -410,7 +425,6 @@ def inputDataProcessing(uniqueId, inputPath):
             dataMap[uniqueId]["mapperInput"][i].append(path)
             i += 1
             j += 1
-    print(dataMap)
 
 
 if __name__ == '__main__':
@@ -439,7 +453,14 @@ if __name__ == '__main__':
     server.register_introspection_functions()
     server.register_function(run_mapred, 'run_mapred')
     server.register_function(init_cluster, 'init_cluster')
-    # #run the rpc server
+    server.register_function(destroy_cluster, 'destroy_cluster')
+
+    # res1 = init_cluster(2, 3)
+    # res2 = run_mapred(res1, "./Data/test.txt", "WordCountMapper",
+    #                   "WordCountReducer", "outputPath.txt")
+    # destroy_cluster(res1)
+
+    #run the rpc server
     try:
         logger.info('Master running on port %s', str(port))
         server.serve_forever()

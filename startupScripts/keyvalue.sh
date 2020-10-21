@@ -7,6 +7,4 @@ cd mapReduceGCP/
 python3 -m venv venv
 source venv/bin/activate
 pip3 install -r requirements.txt
-
-cd KeyValueStore
-python3 KeyValueStore.py
+sudo python3 KeyValueStore.py
