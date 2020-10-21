@@ -64,12 +64,18 @@ def get(arguements):
 def getData(arguements):
     logger.info("called getData")
     filepath = arguements[1]
+    logger.info("getting data at path: %s", filepath)
     while thread_lock.locked() == True:
         continue
     thread_lock.acquire()
-    d = open('./' + filepath, )
-    data = json.load(d)
-    data = json.dumps(data)
+    try:
+        d = open('./' + filepath, )
+        data = json.load(d)
+        data = json.dumps(data)
+        logger.info("fetched data")
+    except:
+        logger.info("Error getting data")
+
     thread_lock.release()
     logger.info("done getData")
     return data
@@ -78,6 +84,7 @@ def getData(arguements):
 def setData(arguements):
     logger.info("called setData")
     path = arguements[0].split()[1]
+    logger.info("storing data at path: %s", path)
     value = arguements[1]
     while thread_lock.locked() == True:
         continue
@@ -89,10 +96,12 @@ def setData(arguements):
         with open("./" + path, 'w') as jsonFile:
             json.dump(dataValue, jsonFile)
             res = 'STORED\r\n'
+        logger.info("stored data")
     except:
+        logger.info("Error storing data")
+
         res = 'NOT-STORED\r\n'
     thread_lock.release()
-    logger.info("done setData")
     return res
 
 
@@ -119,7 +128,7 @@ def initFolders(arguements):
 
 #main keyvalue store function
 def DataStore(message):
-    logger.info("called DataStore")
+    logger.info("called DataStore", )
     message = (message.split('\n'))
     res = []
     for line in message:
