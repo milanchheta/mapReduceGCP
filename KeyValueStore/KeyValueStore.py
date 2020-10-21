@@ -6,6 +6,7 @@ from xmlrpc.server import SimpleXMLRPCRequestHandler
 from _thread import *
 import json
 import os
+import logging
 from configparser import ConfigParser
 
 
@@ -61,7 +62,7 @@ def get(arguements):
 
 ##FUNCTION USED TO FETCH STORED DATA BY MAPREDUCE PROCESSES
 def getData(arguements):
-    print(arguements)
+    logger.info("called getData")
     filepath = arguements[1]
     while thread_lock.locked() == True:
         continue
@@ -70,10 +71,12 @@ def getData(arguements):
     data = json.load(d)
     data = json.dumps(data)
     thread_lock.release()
+    logger.info("done getData")
     return data
 
 
 def setData(arguements):
+    logger.info("called setData")
     path = arguements[0].split()[1]
     value = arguements[1]
     while thread_lock.locked() == True:
@@ -89,10 +92,12 @@ def setData(arguements):
     except:
         res = 'NOT-STORED\r\n'
     thread_lock.release()
+    logger.info("done setData")
     return res
 
 
 def initFolders(arguements):
+    logger.info("called initFolders")
     id = arguements[0].split()[1]
     if (os.path.exists("./Data")):
         pass
@@ -108,11 +113,13 @@ def initFolders(arguements):
         os.mkdir(path + "/mapperOutput")
         os.mkdir(path + "/intermediateOutput")
         os.mkdir(path + "/reducerOutput")
+    logger.info("done initFolders")
     return
 
 
 #main keyvalue store function
 def DataStore(message):
+    logger.info("called DataStore")
     message = (message.split('\n'))
     res = []
     for line in message:
@@ -125,6 +132,16 @@ def DataStore(message):
 
 
 if __name__ == '__main__':
+    logger = logging.getLogger('kvs-node')
+    logger.setLevel(logging.DEBUG)
+
+    fh = logging.FileHandler('kvs.log')
+    fh.setLevel(logging.DEBUG)
+
+    formatter = logging.Formatter(
+        '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    fh.setFormatter(formatter)
+    logger.addHandler(fh)
     parser = ConfigParser()
     parser.read('config.ini')
 
@@ -151,7 +168,7 @@ if __name__ == '__main__':
 
     #run the rpc server
     try:
-        print('KeyValueStore running')
+        logger.info('KeyValueStore running')
         server.serve_forever()
     except Exception:
-        print('Error while running the server')
+        logger.info('Error while running the server')
