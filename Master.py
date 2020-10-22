@@ -61,19 +61,20 @@ def connectToKVStore():
         return res
 
 
-def spawnWorkers(worker, workerQueue):
+def spawnWorkers(uniqueId, worker, workerQueue):
     gcpObj = GCP()
     while True:
         try:
             extIP = gcpObj.get_IP_address(
                 parser.get('gcp', 'project_id'), parser.get('gcp', 'zone'),
-                parser.get('address', 'workerBaseName') + str(worker))
+                parser.get('address', 'workerBaseName') + "-" + uniqueId +
+                "-" + str(worker))
             if extIP == "error":
                 logger.info("creating a worker")
                 operation = gcpObj.create_instance(
                     parser.get('gcp', 'project_id'), parser.get('gcp', 'zone'),
-                    parser.get('address', 'workerBaseName') + str(worker),
-                    parser.get('gcp', 'worker-startup'))
+                    parser.get('address', 'workerBaseName') + "-" + uniqueId +
+                    "-" + str(worker), parser.get('gcp', 'worker-startup'))
                 waitResponse = gcpObj.wait_for_operation(
                     parser.get('gcp', 'project_id'), parser.get('gcp', 'zone'),
                     operation["name"])
@@ -82,7 +83,8 @@ def spawnWorkers(worker, workerQueue):
                     extIP = gcpObj.get_IP_address(
                         parser.get('gcp', 'project_id'),
                         parser.get('gcp', 'zone'),
-                        parser.get('address', 'workerBaseName') + str(worker))
+                        parser.get('address', 'workerBaseName') + "-" +
+                        uniqueId + "-" + str(worker))
                     workerQueue.put(extIP)
                     break
             else:
@@ -99,6 +101,7 @@ def init_cluster(numberOfMappers, numberOfReducers):
     logger.info("init_cluster called....")
     global dataMap
     uniqueId = str(uuid.uuid1())
+    # uniqueId = "53f64188-13f5-11eb-9ce0-acde48001122"
     dataMap[uniqueId] = {}
 
     logger.info("Checking for key value store....")
@@ -130,24 +133,24 @@ def init_cluster(numberOfMappers, numberOfReducers):
 
     for worker in range(max(numberOfMappers, numberOfReducers)):
         workerQueue = Queue()
-        p = Process(target=spawnWorkers, args=(worker, workerQueue))
+        p = Process(target=spawnWorkers, args=(uniqueId, worker, workerQueue))
         p.start()
         p.join()
         dataMap[uniqueId]["workerAddress"].append(workerQueue.get())
         dataMap[uniqueId]["workerName"].append(
-            parser.get('address', 'workerBaseName') + str(worker))
+            parser.get('address', 'workerBaseName') + "-" + uniqueId + "-" +
+            str(worker))
     logger.info("created workers....")
 
     logger.info("Connecting to workers....")
-    for IP in dataMap[uniqueId]["workerAddress"]:
+    for IP in range(len(dataMap[uniqueId]["workerAddress"])):
         while True:
             try:
                 logger.info("connecting to a worker....")
                 dataMap[uniqueId]["workerObj"].append(
                     (xmlrpc.client.ServerProxy(
-                        'http://' +
-                        dataMap[uniqueId]["workerAddress"][worker] + ':' +
-                        parser.get('address', 'rpc'),
+                        'http://' + dataMap[uniqueId]["workerAddress"][IP] +
+                        ':' + parser.get('address', 'rpc'),
                         allow_none=True)))
                 logger.info("connected to a worker....")
                 break
@@ -202,7 +205,7 @@ def run_mapred(uniqueId, inputPath, mapFunction, reducerFunction, outputPath):
     time.sleep(15)
 
     intermediateCombiner(uniqueId)
-    time.sleep(15)
+    # time.sleep(15)
 
     # ##ADJUST VMS
     # if dataMap[uniqueId]["n_reducers"] < dataMap[uniqueId]["n_mappers"]:
@@ -311,18 +314,25 @@ def callMapperWorkers(uniqueId, worker, files, mapFunction):
     global dataMap
 
     for i in range(len(files)):
-        logger.info("calling a mapper with task...%s", i)
+        while True:
+            try:
+                logger.info("calling a mapper with task...%s", i)
+                #RETREIVE SAVED MAPPER OBJECT
+                obj = dataMap[uniqueId]["workerObj"][worker]
 
-        #RETREIVE SAVED MAPPER OBJECT
-        obj = dataMap[uniqueId]["workerObj"][worker]
+                #CALL THE MAP WORKER AND CHANGE STATUS TO BUSY
+                p = Process(target=obj.worker,
+                            args=(uniqueId, worker, files[i], mapFunction,
+                                  "mapper", dataMap[uniqueId]["kvIP"], i))
+                p.start()
+                p.join()
+                logger.info("waiting for a mapper...")
+                break
+            except:
+                logger.info("error calling to a worker....")
+                time.sleep(10)
+                continue
 
-        #CALL THE MAP WORKER AND CHANGE STATUS TO BUSY
-        p = Process(target=obj.worker,
-                    args=(uniqueId, worker, files[i], mapFunction, "mapper",
-                          dataMap[uniqueId]["kvIP"], i))
-        p.start()
-        p.join()
-        logger.info("waiting for a mapper...")
     logger.info("tasks for a mapper is done...")
 
     return
@@ -455,12 +465,7 @@ if __name__ == '__main__':
     server.register_function(init_cluster, 'init_cluster')
     server.register_function(destroy_cluster, 'destroy_cluster')
 
-    # res1 = init_cluster(2, 3)
-    # res2 = run_mapred(res1, "./Data/test.txt", "WordCountMapper",
-    #                   "WordCountReducer", "outputPath.txt")
-    # destroy_cluster(res1)
-
-    #run the rpc server
+    # run the rpc server
     try:
         logger.info('Master running on port %s', str(port))
         server.serve_forever()
