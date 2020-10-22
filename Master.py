@@ -6,7 +6,7 @@ from xmlrpc.server import SimpleXMLRPCRequestHandler
 import xmlrpc.client
 import json
 from multiprocessing import Process, Queue
-import os
+import os, stat
 from math import ceil
 from configparser import ConfigParser
 import uuid
@@ -440,7 +440,8 @@ def inputDataProcessing(uniqueId, inputPath):
 if __name__ == '__main__':
     parser = ConfigParser()
     parser.read('config.ini')
-
+    log_dir = './'
+    os.chmod(log_dir, stat.S_IRWXU)
     logger = logging.getLogger('master-node')
     logger.setLevel(logging.DEBUG)
 
