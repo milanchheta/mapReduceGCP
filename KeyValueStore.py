@@ -10,6 +10,10 @@ import logging
 from configparser import ConfigParser
 
 
+def isKvStoreConnected():
+    return True
+
+
 #set function of key value store
 def set(arguements):
     line1 = arguements[0]
@@ -166,6 +170,8 @@ if __name__ == '__main__':
     server.register_function(getData, 'getData')
     server.register_function(set, 'set')
     server.register_function(get, 'get')
+    server.register_function(isKvStoreConnected, 'isKvStoreConnected')
+
     thread_lock = allocate_lock()
     functionLookup = {
         "get": get,
