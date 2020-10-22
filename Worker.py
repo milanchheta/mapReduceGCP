@@ -4,55 +4,53 @@ import xmlrpc.client
 import logging
 import json
 from configparser import ConfigParser
+import importlib.util
+import pickle
 
+# ##InvertedIndex mapper function
+# def InvertedIndexMapper(data, filename):
+#     logger.info("called WordCountMapper")
+#     data = data.lower()
+#     dataList = ''.join((c if c.isalpha() else ' ') for c in data).split()
+#     resultData = []
+#     for word in dataList:
+#         resultData.append((word, filename))
+#     return resultData
 
-##InvertedIndex mapper function
-def InvertedIndexMapper(data, filename):
-    logger.info("called WordCountMapper")
-    data = data.lower()
-    dataList = ''.join((c if c.isalpha() else ' ') for c in data).split()
-    resultData = []
-    for word in dataList:
-        resultData.append((word, filename))
-    return resultData
+# ##WordCount mapper function
+# def WordCountMapper(data, filename):
+#     logger.info("called WordCountMapper")
 
+#     data = data.lower()
+#     dataList = ''.join((c if c.isalpha() else ' ') for c in data).split()
+#     resultData = []
+#     for word in dataList:
+#         resultData.append((word, 1))
+#     return resultData
 
-##WordCount mapper function
-def WordCountMapper(data, filename):
-    logger.info("called WordCountMapper")
+# ##InvertedIndex reducer function
+# def InvertedIndexReducer(data):
+#     logger.info("called InvertedIndexReducer")
 
-    data = data.lower()
-    dataList = ''.join((c if c.isalpha() else ' ') for c in data).split()
-    resultData = []
-    for word in dataList:
-        resultData.append((word, 1))
-    return resultData
+#     resultDict = {}
+#     for word in data:
+#         for entry in data[word]:
+#             if word in resultDict:
+#                 if entry[1] in resultDict[word]:
+#                     resultDict[word][entry[1]] += 1
+#                 else:
+#                     resultDict[word][entry[1]] = 1
+#             else:
+#                 resultDict[word] = {entry[1]: 1}
+#     return resultDict
 
-
-##InvertedIndex reducer function
-def InvertedIndexReducer(data):
-    logger.info("called InvertedIndexReducer")
-
-    resultDict = {}
-    for word in data:
-        for entry in data[word]:
-            if word in resultDict:
-                if entry[1] in resultDict[word]:
-                    resultDict[word][entry[1]] += 1
-                else:
-                    resultDict[word][entry[1]] = 1
-            else:
-                resultDict[word] = {entry[1]: 1}
-    return resultDict
-
-
-##WordCount reducer function
-def WordCountReducer(data):
-    logger.info("called wordcount reducer")
-    resultDict = {}
-    for word in data:
-        resultDict[word] = len(data[word])
-    return resultDict
+# ##WordCount reducer function
+# def WordCountReducer(data):
+#     logger.info("called wordcount reducer")
+#     resultDict = {}
+#     for word in data:
+#         resultDict[word] = len(data[word])
+#     return resultDict
 
 
 ##store data to key value store
@@ -83,16 +81,16 @@ def worker(uniqueId, worker, file, passedFunction, caller, kvIP, taskNumber=0):
     logger.info("called worker from %s", caller)
 
     ##function map of available applications
-    functionMap = {
-        "mapper": {
-            "InvertedIndexMapper": InvertedIndexMapper,
-            "WordCountMapper": WordCountMapper
-        },
-        "reducer": {
-            "InvertedIndexReducer": InvertedIndexReducer,
-            "WordCountReducer": WordCountReducer
-        }
-    }
+    # functionMap = {
+    #     "mapper": {
+    #         "InvertedIndexMapper": InvertedIndexMapper,
+    #         "WordCountMapper": WordCountMapper
+    #     },
+    #     "reducer": {
+    #         "InvertedIndexReducer": InvertedIndexReducer,
+    #         "WordCountReducer": WordCountReducer
+    #     }
+    # }
 
     logger.info("creating datastore object")
     ##connect to the keyvaluestore
@@ -101,16 +99,19 @@ def worker(uniqueId, worker, file, passedFunction, caller, kvIP, taskNumber=0):
         allow_none=True)
 
     result = getInputData(file, dataStoreObj)
+    operateFunc = pickle.loads(passedFunction)
 
     if caller == "mapper":
         for file in result:
             filename = file
             res = result[filename]
-        resultData = functionMap[caller][passedFunction](res, filename)
+        # resultData = functionMap[caller][passedFunction](res, filename)
+        resultData = operateFunc(res, filename)
         path = "Data/" + uniqueId + "/mapperOutput/output" + str(worker) + str(
             taskNumber) + ".json"
     if caller == "reducer":
-        resultData = functionMap[caller][passedFunction](result)
+        # resultData = functionMap[caller][passedFunction](result)
+        resultData = operateFunc(res, filename)
         path = "Data/" + uniqueId + "/reducerOutput/output" + str(
             worker) + ".json"
 
