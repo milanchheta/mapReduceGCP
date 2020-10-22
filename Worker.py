@@ -53,6 +53,10 @@ import pickle
 #     return resultDict
 
 
+def isWorkerConencted():
+    return True
+
+
 ##store data to key value store
 def storeOutputData(dataStoreObj, result, path):
     logger.info("storing datastore object")
@@ -148,6 +152,7 @@ if __name__ == '__main__':
 
     #register functions to rpc server
     server.register_function(worker, 'worker')
+    server.register_function(isWorkerConencted, 'isWorkerConencted')
 
     #run the rpc server
     try:
