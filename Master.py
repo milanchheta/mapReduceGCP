@@ -465,6 +465,11 @@ if __name__ == '__main__':
     server.register_function(init_cluster, 'init_cluster')
     server.register_function(destroy_cluster, 'destroy_cluster')
 
+    # res1 = init_cluster(2, 3)
+    # res2 = run_mapred(res1, "./Data/test.txt", "WordCountMapper",
+    #                   "WordCountReducer", "outputPath.txt")
+    # destroy_cluster(res1)
+
     # run the rpc server
     try:
         logger.info('Master running on port %s', str(port))
