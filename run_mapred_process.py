@@ -274,6 +274,7 @@ def callReducerWorkers(uniqueId, worker, reducerFunction, dataMap, logger):
                 if workerObj.status() == "FINISHED":
                     break
         except Exception as e:
+
             continue
 
     logger.info("reducer task done..")
