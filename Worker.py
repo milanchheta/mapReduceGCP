@@ -5,7 +5,7 @@ import logging
 import json
 from configparser import ConfigParser
 import importlib.util
-import pickle
+import marshal
 
 # ##InvertedIndex mapper function
 # def InvertedIndexMapper(data, filename):
@@ -103,7 +103,7 @@ def worker(uniqueId, worker, file, passedFunction, caller, kvIP, taskNumber=0):
         allow_none=True)
 
     result = getInputData(file, dataStoreObj)
-    operateFunc = pickle.loads(passedFunction)
+    operateFunc = marshal.loads(passedFunction)
 
     if caller == "mapper":
         for file in result:
