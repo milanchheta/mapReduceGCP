@@ -47,7 +47,8 @@ def run_mapred_process(uniqueId, inputPath, mapFunction, reducerFunction,
         for i in range(dataMap["n_mappers"], dataMap["n_reducers"]):
             workerQueue.append(Queue())
             p = Process(target=spawnSingleWorker,
-                        args=(uniqueId, i, workerQueue[i], logger))
+                        args=(uniqueId, i,
+                              workerQueue[i - dataMap["n_mappers"]], logger))
             p.start()
             dataMap["workerName"].append(
                 parser.get('address', 'workerBaseName') + "-" + uniqueId +
