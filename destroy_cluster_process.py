@@ -18,6 +18,7 @@ def destroy_cluster_process(uniqueId, logegr):
     dataStoreObj = xmlrpc.client.ServerProxy('http://' + kvIp + ':' +
                                              parser.get('address', 'rpc'),
                                              allow_none=True)
+
     file = "Data/" + uniqueId + "/datamap.json"
     responseMessage = 'get-data' + '\n' + file + '\n'
     dataMap = json.loads(dataStoreObj.DataStore(responseMessage))

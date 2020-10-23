@@ -28,24 +28,38 @@ def interactWithKv(responseMessage):
             continue
 
 
+def spawnSingleWorker(uniqueId, worker, workerQueue, logger):
+    gcpObj = GCP()
+    logger.info("CREATING WORKER VM INSTANCE: %s", worker)
+    try:
+        extIP = gcpObj.get_IP_address(
+            parser.get('gcp', 'project_id'), parser.get('gcp', 'zone'),
+            parser.get('address', 'workerBaseName') + "-" + uniqueId + "-" +
+            str(worker))
+        workerQueue.put(extIP)
+    except:
+        extIP = gcpObj.create_instance(
+            parser.get('gcp', 'project_id'), parser.get('gcp', 'zone'),
+            parser.get('address', 'workerBaseName') + "-" + uniqueId + "-" +
+            str(worker), parser.get('gcp', 'worker-startup'))
+        workerQueue.put(extIP)
+
+
 def run_mapred_process(uniqueId, inputPath, mapFunction, reducerFunction,
                        outputPath, logger):
-    logger.info("run_mapred function called....")
-    print("1")
+
     gcpObj = GCP()
     file = "Data/" + uniqueId + "/datamap.json"
     responseMessage = 'get-data' + '\n' + file + '\n'
     dataMap = json.loads(interactWithKv(responseMessage))
 
     dataMap = inputDataProcessing(uniqueId, inputPath, dataMap, logger)
-    logger.info("Input processing done...")
-    print("2")
 
     # distribute mapper tasks
-    logger.info("distibuting tasks among mappers...")
+    logger.info("CALLING %s MAPPERS WITH TASKS", len(dataMap["mapperInput"]))
+    start_time = time.time()
     tasks = []
     for worker in dataMap["mapperInput"]:
-        logger.info("distibuting a task among mapper number %s...", worker)
         p = Process(target=callMapperWorkers,
                     args=(uniqueId, worker, mapFunction, dataMap, logger))
         p.start()
@@ -53,16 +67,41 @@ def run_mapred_process(uniqueId, inputPath, mapFunction, reducerFunction,
 
     for task in tasks:
         task.join()
-    logger.info("All a mapper done...")
+    logger.info("ALL MAPPER TASKS DONE WITH EXECUTION TIME: %s",
+                time.time() - start_time)
 
+    if (dataMap["n_reducers"] > dataMap["n_mappers"]):
+        nodeAddress = dataMap["nodeAddress"]
+        nodeName = dataMap["workerName"]
+        tasks = []
+        workerQueue = []
+        for i in range(dataMap["n_reducers"], dataMap["n_mappers"]):
+            workerQueue.append(Queue())
+            p = Process(target=spawnSingleWorker,
+                        args=(uniqueId, i, workerQueue[i], logger))
+            p.start()
+            nodeName.append(
+                parser.get('address', 'workerBaseName') + "-" + uniqueId +
+                "-" + str(i))
+            tasks.append(p)
+        for task in tasks:
+            task.join()
+            pass
+        for i in range(len(workerQueue)):
+            nodeAddress.append(workerQueue[i].get())
+
+    elif (dataMap["n_reducers"] < dataMap["n_mappers"]):
+        for i in range(dataMap["n_reducers"], dataMap["n_mappers"]):
+            gcpObj.delete_instance(parser.get('gcp', 'project_id'),
+                                   parser.get('gcp', 'zone'),
+                                   dataMap["workerName"][i])
     # #combine mapper output
     intermediateCombiner(uniqueId, dataMap, logger)
 
-    # distribute reducer tasks
-    # callReducerWorkers(uniqueId, reducerFunction, dataMap, logger)
-
     # distribute mapper tasks
-    logger.info("distibuting tasks among reducer...")
+    logger.info("CALLING %s REDUCERS WITH TASKS", dataMap["n_reducers"])
+    start_time = time.time()
+
     tasks = []
     for worker in range(dataMap["n_reducers"]):
         p = Process(target=callReducerWorkers,
@@ -72,7 +111,8 @@ def run_mapred_process(uniqueId, inputPath, mapFunction, reducerFunction,
 
     for task in tasks:
         task.join()
-    logger.info("All a reducer done...")
+    logger.info("ALL REDUCERS TASKS DONE WITH EXECUTION TIME: %s",
+                time.time() - start_time)
 
     # combine and store reducer outbut
     res = combineAndStoreReducerOutput(uniqueId, outputPath, dataMap, logger)
@@ -81,7 +121,9 @@ def run_mapred_process(uniqueId, inputPath, mapFunction, reducerFunction,
 
 
 def inputDataProcessing(uniqueId, inputPath, dataMap, logger):
-    logger.info("processing input....")
+    logger.info("PROCESSING INPUT DATA AND DIVIDING INTO CHUNKS")
+    start_time = time.time()
+
     dataMap["mapperInput"] = {}
     for i in range(dataMap["n_mappers"]):
         dataMap["mapperInput"][i] = []
@@ -89,8 +131,6 @@ def inputDataProcessing(uniqueId, inputPath, dataMap, logger):
     #generate chunks for given input data
     #from directory
     if (os.path.isdir(inputPath)):
-        logger.info("processing input directory....")
-
         allFiles = os.listdir(inputPath)
         i = 0
         j = 0
@@ -104,10 +144,9 @@ def inputDataProcessing(uniqueId, inputPath, dataMap, logger):
             data = 'set-data' + ' ' + path + '\n' + json.dumps(data) + '\n'
 
             ##STORE CHUNKS IN KEYVALUE STORE
-            logger.info("storing chunks in kv store....")
-            interactWithKv(data)
+            logger.info("STORING CHUNKS IN KEY VALUE STORE")
 
-            logger.info("stored chunks in kv store....")
+            interactWithKv(data)
 
             #SAVE FILENAME IN ARR OF MAPPER INPUT
             dataMap["mapperInput"][i].append(path)
@@ -116,12 +155,10 @@ def inputDataProcessing(uniqueId, inputPath, dataMap, logger):
     #from file
     else:
         if (os.path.isfile(inputPath)):
-            logger.info("processing input file....")
             f = open(inputPath, 'r')
             file = os.path.basename(inputPath)
             content = f.read()
         else:
-            logger.info("processing input string....")
 
             content = inputPath
             file = "InputString"
@@ -150,10 +187,9 @@ def inputDataProcessing(uniqueId, inputPath, dataMap, logger):
             data = 'set-data' + ' ' + path + '\n' + json.dumps(data) + '\n'
 
             ##STORE CHUNKS IN KEYVALUE STORE
-            logger.info("storing chunks in kv store....")
+            logger.info("STORING CHUNKS IN KEY VALUE STORE")
             # #create folder in keyvalue
             interactWithKv(data)
-            logger.info("stored chunks in kv store....")
 
             #SAVE FILENAME IN ARR OF MAPPER INPUT
             dataMap["mapperInput"][i].append(path)
@@ -163,6 +199,10 @@ def inputDataProcessing(uniqueId, inputPath, dataMap, logger):
     path = "Data/" + uniqueId + "/datamap.json"
     data = 'set-data' + ' ' + path + '\n' + json.dumps(dataMap) + '\n'
     interactWithKv(data)
+    logger.info(
+        "PROCESSING INPUT DATA AND DIVIDING INTO CHUNKS DONE WITH EXECUTION TIME: %s",
+        time.time() - start_time)
+
     return dataMap
 
 
@@ -170,9 +210,9 @@ def callMapperWorkers(uniqueId, worker, mapFunction, dataMap, logger):
     gcpObj = GCP()
 
     for i in range(len(dataMap["mapperInput"][worker])):
-        logger.info("calling a mapper with task...%s", i)
         #RETREIVE SAVED MAPPER OBJECT
         while True:
+            logger.info("CALLING MAPPER: {} WITH TASK: {}".format(worker, i))
             try:
                 workerIp = gcpObj.get_IP_address(
                     parser.get('gcp', 'project_id'), parser.get('gcp', 'zone'),
@@ -195,17 +235,22 @@ def callMapperWorkers(uniqueId, worker, mapFunction, dataMap, logger):
                     p.join()
                     logger.info("waiting for a mapper...")
                     if workerObj.status() == "FINISHED":
+                        logger.info(
+                            "SUCCESS => MAPPER: {} WITH TASK: {}".format(
+                                worker, i))
                         break
             except Exception as e:
+                logger.info("ERROR => MAPPER: {} WITH TASK: {}".format(
+                    worker, i))
                 continue
-
-    logger.info("tasks for a mapper is done...")
     return
 
 
 def intermediateCombiner(uniqueId, dataMap, logger):
 
-    logger.info("Called intermediate combiner...")
+    logger.info("INTERMEDIATE FUNCTION CALLED TO COMBINE MAPPER OUTPUTS")
+    start_time = time.time()
+
     mapperOutput = []
     for worker in dataMap["mapperInput"]:
         for task in range(len(dataMap["mapperInput"][worker])):
@@ -214,12 +259,8 @@ def intermediateCombiner(uniqueId, dataMap, logger):
             responseMessage = 'get-data' + '\n' + file + '\n'
 
             #retrieve from keystore
-            logger.info("Fetching data for intermediate function...")
             jsonData = interactWithKv(responseMessage)
             mapperOutput.append(json.loads(jsonData))
-
-    logger.info("Fetched all data for intermediate function...")
-    logger.info("Preparing reducer data..")
 
     reducerInput = {}
     for i in range(dataMap["n_reducers"]):
@@ -235,8 +276,7 @@ def intermediateCombiner(uniqueId, dataMap, logger):
                 reducerInput[str(hashId)][entry[0]] += [entry]
             else:
                 reducerInput[str(hashId)][entry[0]] = [entry]
-    logger.info("Storing reducer input data..")
-
+    logger.info("STORING INTERMEDIATE DATA FOR REDUCERS")
     for reducer in reducerInput:
         path = "Data/" + uniqueId + "/intermediateOutput/output" + str(
             reducer) + ".json"
@@ -245,7 +285,11 @@ def intermediateCombiner(uniqueId, dataMap, logger):
 
         #store in keystore
         interactWithKv(data)
-    logger.info("Stored reducer input data..")
+    logger.info(
+        "INTERMEDIATE FUNCTION CALLED TO COMBINE MAPPER OUTPUTS DONE WITH EXECUTION TIME: %s",
+        time.time() - start_time)
+
+    return
 
 
 def callReducerWorkers(uniqueId, worker, reducerFunction, dataMap, logger):
@@ -254,6 +298,7 @@ def callReducerWorkers(uniqueId, worker, reducerFunction, dataMap, logger):
     # for worker in range(dataMap["n_reducers"]):
 
     while True:
+        logger.info("CALLING REDUCER: %s", worker)
         try:
             workerIp = gcpObj.get_IP_address(parser.get('gcp', 'project_id'),
                                              parser.get('gcp', 'zone'),
@@ -274,17 +319,18 @@ def callReducerWorkers(uniqueId, worker, reducerFunction, dataMap, logger):
                 p.start()
                 p.join()
                 if workerObj.status() == "FINISHED":
+                    logger.info("SUCCESS => REDUCER: {}".format(worker))
                     break
         except Exception as e:
-
+            logger.info("ERROR => REDUCER: {}".format(worker))
             continue
 
-    logger.info("reducer task done..")
     return
 
 
 def combineAndStoreReducerOutput(uniqueId, outputPath, dataMap, logger):
-
+    logger.info("COMBINER FUNCTION CALLED TO COMBINE REDUCER OUTPUTS")
+    start_time = time.time()
     reducerOutput = []
     for worker in range(dataMap["n_reducers"]):
         file = "Data/" + uniqueId + "/reducerOutput/output" + str(
@@ -293,6 +339,10 @@ def combineAndStoreReducerOutput(uniqueId, outputPath, dataMap, logger):
         jsonData = interactWithKv(responseMessage)
         reducerOutput.append(json.loads(jsonData))
     output = json.dumps(reducerOutput)
+    logger.info("STORING OUTPUT DATA FILE IN MASTER")
     with open(outputPath, 'w') as f:
         f.write(output)
+    logger.info("COMBINER FUNCTION CALLED TO COMBINE REDUCER OUTPUTS %s",
+                time.time() - start_time)
+
     return output
