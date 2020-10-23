@@ -57,7 +57,20 @@ def run_mapred_process(uniqueId, inputPath, mapFunction, reducerFunction,
     intermediateCombiner(uniqueId, dataMap, logger)
 
     # distribute reducer tasks
-    callReducerWorkers(uniqueId, reducerFunction, dataMap, logger)
+    # callReducerWorkers(uniqueId, reducerFunction, dataMap, logger)
+
+    # distribute mapper tasks
+    logger.info("distibuting tasks among reducer...")
+    tasks = []
+    for worker in range(dataMap["n_reducers"]):
+        p = Process(target=callReducerWorkers,
+                    args=(uniqueId, worker, reducerFunction, dataMap, logger))
+        p.start()
+        tasks.append(p)
+
+    for task in tasks:
+        task.join()
+    logger.info("All a reducer done...")
 
     # combine and store reducer outbut
     res = combineAndStoreReducerOutput(uniqueId, outputPath, dataMap, logger)
@@ -179,13 +192,9 @@ def callMapperWorkers(uniqueId, worker, mapFunction, dataMap, logger):
                     p.start()
                     p.join()
                     logger.info("waiting for a mapper...")
-                    print(workerObj.status())
                     if workerObj.status() == "FINISHED":
-                        print("finished a task")
                         break
-                    print("restarting")
             except Exception as e:
-                print("restarting e")
                 continue
 
     logger.info("tasks for a mapper is done...")
@@ -237,35 +246,35 @@ def intermediateCombiner(uniqueId, dataMap, logger):
     logger.info("Stored reducer input data..")
 
 
-def callReducerWorkers(uniqueId, reducerFunction, dataMap, logger):
+def callReducerWorkers(uniqueId, worker, reducerFunction, dataMap, logger):
     gcpObj = GCP()
 
-    for worker in range(dataMap["n_reducers"]):
+    # for worker in range(dataMap["n_reducers"]):
 
-        while True:
-            try:
-                workerIp = gcpObj.get_IP_address(
+    while True:
+        try:
+            workerIp = gcpObj.get_IP_address(parser.get('gcp', 'project_id'),
+                                             parser.get('gcp', 'zone'),
+                                             dataMap["workerName"][worker])
+            workerObj = xmlrpc.client.ServerProxy('http://' + workerIp + ':' +
+                                                  parser.get('address', 'rpc'),
+                                                  allow_none=True)
+            if (workerObj.isWorkerConnected() == True):
+                #CALL THE MAP WORKER
+                kvIp = gcpObj.get_IP_address(
                     parser.get('gcp', 'project_id'), parser.get('gcp', 'zone'),
-                    dataMap["workerName"][worker])
-                workerObj = xmlrpc.client.ServerProxy(
-                    'http://' + workerIp + ':' + parser.get('address', 'rpc'),
-                    allow_none=True)
-                if (workerObj.isWorkerConnected() == True):
-                    #CALL THE MAP WORKER
-                    kvIp = gcpObj.get_IP_address(
-                        parser.get('gcp', 'project_id'),
-                        parser.get('gcp', 'zone'),
-                        parser.get('address', 'keyValueName'))
-                    file = "Data/" + uniqueId + "/intermediateOutput/output" + str(
-                        worker) + ".json"
-                    p = Process(target=workerObj.worker,
-                                args=(uniqueId, worker, file, reducerFunction,
-                                      "reducer", kvIp))
-                    p.start()
-                    if workerObj.status() == "FINISHED":
-                        break
-            except:
-                continue
+                    parser.get('address', 'keyValueName'))
+                file = "Data/" + uniqueId + "/intermediateOutput/output" + str(
+                    worker) + ".json"
+                p = Process(target=workerObj.worker,
+                            args=(uniqueId, worker, file, reducerFunction,
+                                  "reducer", kvIp))
+                p.start()
+                p.join()
+                if workerObj.status() == "FINISHED":
+                    break
+        except Exception as e:
+            continue
 
     logger.info("reducer task done..")
     return
