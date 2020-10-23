@@ -179,7 +179,8 @@ def callMapperWorkers(uniqueId, worker, mapFunction, dataMap, logger):
                     p.start()
                     p.join()
                     logger.info("waiting for a mapper...")
-                    break
+                    if workerObj.status() == "FINISHED":
+                        break
             except:
                 continue
 
@@ -234,7 +235,6 @@ def intermediateCombiner(uniqueId, dataMap, logger):
 
 def callReducerWorkers(uniqueId, reducerFunction, dataMap, logger):
     gcpObj = GCP()
-    tasks = []
 
     for worker in range(dataMap["n_reducers"]):
 
@@ -259,11 +259,10 @@ def callReducerWorkers(uniqueId, reducerFunction, dataMap, logger):
                                       "reducer", kvIp))
                     p.start()
                     tasks.append(p)
-
+                    if workerObj.status() == "FINISHED":
+                        break
             except:
                 continue
-    for i in range(len(tasks)):
-        tasks[i].join()
 
     logger.info("reducer task done..")
     return
