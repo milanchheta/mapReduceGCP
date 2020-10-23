@@ -93,8 +93,14 @@ def run_mapred_process(uniqueId, inputPath, mapFunction, reducerFunction,
     logger.info("ALL REDUCERS TASKS DONE WITH EXECUTION TIME: %s",
                 time.time() - start_time)
 
+    for i in range(dataMap["n_reducers"]):
+        gcpObj.delete_instance(parser.get('gcp', 'project_id'),
+                               parser.get('gcp', 'zone'),
+                               dataMap["workerName"][i])
+
     # combine and store reducer outbut
     res = combineAndStoreReducerOutput(uniqueId, outputPath, dataMap, logger)
+    logger.info("DELETING ALL VMS")
 
     return res
 
