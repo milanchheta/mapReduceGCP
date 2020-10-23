@@ -53,7 +53,7 @@ import pickle
 #     return resultDict
 
 
-def isWorkerConencted():
+def isWorkerConnected():
     return True
 
 
@@ -152,7 +152,7 @@ if __name__ == '__main__':
 
     #register functions to rpc server
     server.register_function(worker, 'worker')
-    server.register_function(isWorkerConencted, 'isWorkerConencted')
+    server.register_function(isWorkerConnected, 'isWorkerConnected')
 
     #run the rpc server
     try:
