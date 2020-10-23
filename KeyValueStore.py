@@ -44,7 +44,6 @@ def set(arguements):
 
 #get function of the keyvalue store to get value of specified key
 def get(arguements):
-
     line1 = arguements[0]
     key = line1[1]
     res = ''
@@ -61,13 +60,12 @@ def get(arguements):
         size = '0' + '\r\n'
     res = 'VALUE' + ' ' + key + ' ' + size + value
     thread_lock.release()
-
     return (res)
 
 
 ##FUNCTION USED TO FETCH STORED DATA BY MAPREDUCE PROCESSES
 def getData(arguements):
-    logger.info("called getData")
+    logger.info("FETCHING DATA FROM KEY VALUE STORE")
     try:
         filepath = arguements[1]
         logger.info("getting data at path: %s", filepath)
@@ -86,12 +84,13 @@ def getData(arguements):
         logger.info("done getData")
         return data
     except Exception as e:
+        logger.info("ERROR FETCHING DATA FROM KEY VALUE STORE")
         raise e
 
 
 def setData(arguements):
-    logger.info("called setData")
     try:
+        logger.info("STORING DATA IN KEY VALUE STORE")
         path = arguements[0].split()[1]
         logger.info("storing data at path: %s", path)
         value = arguements[1]
@@ -113,13 +112,14 @@ def setData(arguements):
         thread_lock.release()
         return res
     except Exception as e:
+        logger.info("ERROR STORING DATA IN KEY VALUE STORE")
         raise e
 
 
 def initFolders(arguements):
-    logger.info("called initFolders")
     try:
         id = arguements[0].split()[1]
+        logger.info("INITIALIZING DATA FOLDER FOR UUID %s", id)
         datamap = json.loads(arguements[1])
         if (os.path.exists("./Data")):
             pass
@@ -141,21 +141,26 @@ def initFolders(arguements):
         logger.info("done initFolders")
         return True
     except Exception as e:
+        logger.info("ERROR INITIALIZING DATA FOLDER FOR UUID %s", id)
+
         raise e
 
 
 #main keyvalue store function
 def DataStore(message):
-    logger.info("called DataStore")
-    message = (message.split('\n'))
-    res = []
-    for line in message:
-        res.append(line)
-    if len(res[0]) > 1:
-        command = res[0].split(' ')[0]
-    else:
-        command = res[0]
-    return functionLookup[command](res)
+    logger.info("KEY-VALUE STORE CALLED")
+    try:
+        message = (message.split('\n'))
+        res = []
+        for line in message:
+            res.append(line)
+        if len(res[0]) > 1:
+            command = res[0].split(' ')[0]
+        else:
+            command = res[0]
+        return functionLookup[command](res)
+    except Exception as e:
+        raise e
 
 
 if __name__ == '__main__':
@@ -199,7 +204,7 @@ if __name__ == '__main__':
 
     #run the rpc server
     try:
-        logger.info('KeyValueStore running')
+        logger.info('KeyValueStore NODE RUNNING ON PORT: %s', str(portNumber))
         server.serve_forever()
     except Exception:
-        logger.info('Error while running the server')
+        logger.info('CLOSING THE SERVER')
