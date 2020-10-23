@@ -78,11 +78,16 @@ class GCP:
                 }]
             }
         }
-
-        operation = self.compute.instances().insert(project=project,
-                                                    zone=zone,
-                                                    body=config).execute()
-        return operation
+        while True:
+            try:
+                operation = self.compute.instances().insert(
+                    project=project, zone=zone, body=config).execute()
+                waitResponse = self.wait_for_operation(project, zone,
+                                                       operation["name"])
+                IP = self.get_IP_address(project, zone, name)
+                return IP
+            except:
+                continue
 
     # [END create_instance]
 
@@ -97,17 +102,13 @@ class GCP:
 
     # [START wait_for_operation]
     def wait_for_operation(self, project, zone, operation):
-
-        print('Waiting for operation to finish...')
         while True:
             result = self.compute.zoneOperations().get(
                 project=project, zone=zone, operation=operation).execute()
-
             if result['status'] == 'DONE':
-                return "done"
                 if 'error' in result:
                     raise Exception(result['error'])
-                return "error"
+                return result
 
             time.sleep(1)
 
@@ -121,17 +122,33 @@ class GCP:
             ext_ip = instance['networkInterfaces'][0]['accessConfigs'][0][
                 'natIP']
             return ext_ip
-        except:
-            return "error"
+        except Exception as e:
+            raise e
+
+    def isInstanceRunning(self, project, zone, name):
+        try:
+            status = self.compute.instances().get(project=project,
+                                                  zone=zone,
+                                                  instance=name).execute()
+
+            if status['status'] == "RUNNING":
+                return True
+            else:
+                return False
+        except Exception as e:
+            raise e
+
+    def startInstance(self, project, zone, name):
+        try:
+            operation = self.compute.instances().start(
+                project=project, zone=zone, instance=name).execute()
+            waitResponse = self.wait_for_operation(project, zone,
+                                                   operation["name"])
+            return True
+        except Exception as e:
+            raise e
 
 
 # g = GCP()
-# print(
-#     g.get_IP_address(parser.get('gcp', 'project_id'),
-#                      parser.get('gcp', 'zone'), "new"))
-# operation = g.create_instance(parser.get('gcp', 'project_id'),
-#                               parser.get('gcp', 'zone'), "<NAME>")
-# operation = g.delete_instance(parser.get('gcp', 'project_id'),
-#                               parser.get('gcp', 'zone'), "<NAME>")
-# g.wait_for_operation(parser.get('gcp', 'project_id'),
-#                      parser.get('gcp', 'zone'), operation["name"])
+# print(g.get_IP_address("milan-chheta", "us-central1-c", "keyvalue-node"))
+# print(g.startInstance("milan-chheta", "us-central1-c", "keyvalue-node"))

@@ -7,5 +7,5 @@ cd mapReduceGCP/
 python3 -m venv venv
 source venv/bin/activate
 pip3 install -r requirements.txt
-python3 Master.py
+sudo python3 Master.py
 # sudo chown -R michheta:michheta venv

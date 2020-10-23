@@ -13,187 +13,187 @@ import uuid
 from gcp import GCP
 import logging
 import time
-
+import marshal
 dataMap = {}
 
 
 def destroy_cluster(uniqueId):
     gcpObj = GCP()
-    global dataMap
-    for worker in dataMap[uniqueId]["workerName"]:
+
+    kvIp = gcpObj.get_IP_address(parser.get('gcp', 'project_id'),
+                                 parser.get('gcp', 'zone'),
+                                 parser.get('address', 'keyValueName'))
+    dataStoreObj = xmlrpc.client.ServerProxy('http://' + kvIp + ':' +
+                                             parser.get('address', 'rpc'),
+                                             allow_none=True)
+    file = "Data/" + uniqueId + "/datamap.json"
+    responseMessage = 'get-data' + '\n' + file + '\n'
+    dataMap = json.loads(dataStoreObj.DataStore(responseMessage))
+
+    dataMap = inputDataProcessing(uniqueId, inputPath, dataMap, dataStoreObj)
+    for worker in dataMap["workerName"]:
         gcpObj.delete_instance(parser.get('gcp', 'project_id'),
                                parser.get('gcp', 'zone'), worker)
 
 
 def connectToKVStore():
     gcpObj = GCP()
-    res = gcpObj.get_IP_address(parser.get('gcp', 'project_id'),
-                                parser.get('gcp', 'zone'),
-                                parser.get('address', 'keyValueName'))
-    if res == "error":
-        logger.info("Creating key value store instance....")
-        while True:
-            try:
-                logger.info("creating key value store....")
-
-                operation = gcpObj.create_instance(
-                    parser.get('gcp', 'project_id'), parser.get('gcp', 'zone'),
-                    parser.get('address', 'keyValueName'),
-                    parser.get('gcp', 'keyvalue-startup'))
-
-                waitResponse = gcpObj.wait_for_operation(
-                    parser.get('gcp', 'project_id'), parser.get('gcp', 'zone'),
-                    operation["name"])
-
-                if waitResponse != "error":
-                    logger.info("key value store created....")
-                    return gcpObj.get_IP_address(
-                        parser.get('gcp', 'project_id'),
-                        parser.get('gcp', 'zone'),
-                        parser.get('address', 'keyValueName'))
-                else:
-                    logger.info("error creating key value store....")
-
-            except Exception as e:
-                raise e
-    else:
-        logger.info("key value store exists....")
+    try:
+        logger.info("Checking if key value store already exists....")
+        res = gcpObj.get_IP_address(parser.get('gcp', 'project_id'),
+                                    parser.get('gcp', 'zone'),
+                                    parser.get('address', 'keyValueName'))
+        logger.info("key value store already exists....")
         return res
+    except:
+        logger.info("Creating key value store....")
+        IPaddr = gcpObj.create_instance(parser.get('gcp', 'project_id'),
+                                        parser.get('gcp', 'zone'),
+                                        parser.get('address', 'keyValueName'),
+                                        parser.get('gcp', 'keyvalue-startup'))
+        logger.info("Key value store created....")
+        return IPaddr
 
 
-def spawnWorkers(uniqueId, worker, workerQueue):
+def spawnSingleWorker(uniqueId, worker, workerQueue):
+
     gcpObj = GCP()
+    try:
+        logger.info("Checking if worker-%s already exists....", worker)
+        extIP = gcpObj.get_IP_address(
+            parser.get('gcp', 'project_id'), parser.get('gcp', 'zone'),
+            parser.get('address', 'workerBaseName') + "-" + uniqueId + "-" +
+            str(worker))
+        logger.info("Worker-%s already exists....", worker)
+        workerQueue.put(extIP)
+    except:
+        logger.info("Creating worker-%s ....", worker)
+        extIP = gcpObj.create_instance(
+            parser.get('gcp', 'project_id'), parser.get('gcp', 'zone'),
+            parser.get('address', 'workerBaseName') + "-" + uniqueId + "-" +
+            str(worker), parser.get('gcp', 'worker-startup'))
+        logger.info("Created worker-%s ....", worker)
+        workerQueue.put(extIP)
+
+
+def spawnWorkers(numOfWorkers, uniqueId):
+    nodeAddress = []
+    nodeName = []
+    tasks = []
+    logger.info("Creating %s workers....", numOfWorkers)
+    workerQueue = []
+    for worker in range(numOfWorkers):
+        workerQueue.append(Queue())
+        p = Process(target=spawnSingleWorker,
+                    args=(uniqueId, worker, workerQueue[worker]))
+        p.start()
+        tasks.append(p)
+
+    for task in tasks:
+        task.join()
+
+    for i in range(len(workerQueue)):
+        nodeAddress.append(workerQueue[i].get())
+        nodeName.append(
+            parser.get('address', 'workerBaseName') + "-" + uniqueId + "-" +
+            str(i))
+
+    logger.info("created workers....")
+    return nodeAddress, nodeName
+
+
+def waitForWorker(worker, ip):
     while True:
         try:
-            extIP = gcpObj.get_IP_address(
-                parser.get('gcp', 'project_id'), parser.get('gcp', 'zone'),
-                parser.get('address', 'workerBaseName') + "-" + uniqueId +
-                "-" + str(worker))
-            if extIP == "error":
-                logger.info("creating a worker")
-                operation = gcpObj.create_instance(
-                    parser.get('gcp', 'project_id'), parser.get('gcp', 'zone'),
-                    parser.get('address', 'workerBaseName') + "-" + uniqueId +
-                    "-" + str(worker), parser.get('gcp', 'worker-startup'))
-                waitResponse = gcpObj.wait_for_operation(
-                    parser.get('gcp', 'project_id'), parser.get('gcp', 'zone'),
-                    operation["name"])
-                if waitResponse != "error":
-                    logger.info("created a worker")
-                    extIP = gcpObj.get_IP_address(
-                        parser.get('gcp', 'project_id'),
-                        parser.get('gcp', 'zone'),
-                        parser.get('address', 'workerBaseName') + "-" +
-                        uniqueId + "-" + str(worker))
-                    workerQueue.put(extIP)
-                    break
-            else:
-                logger.info("worker exists")
-                workerQueue.put(extIP)
+            workerObj = xmlrpc.client.ServerProxy(
+                'http://' + worker[ip] + ':' + parser.get('address', 'rpc'),
+                allow_none=True)
+            if (workerObj.isWorkerConnected() == True):
                 break
-        except Exception as e:
-            logger.info("error creating a worker")
-            raise e
+        except:
+            continue
+    return
 
 
 #init cluster api
 def init_cluster(numberOfMappers, numberOfReducers):
-    logger.info("init_cluster called....")
-    global dataMap
+
+    logger.info("init_cluster() was called....")
     uniqueId = str(uuid.uuid1())
-    # uniqueId = "53f64188-13f5-11eb-9ce0-acde48001122"
-    dataMap[uniqueId] = {}
+    dataMap = {}
 
-    logger.info("Checking for key value store....")
+    logger.info("Assigning IP address for kv store")
     kvIp = connectToKVStore()
-
+    dataMap["kvIP"] = kvIp
     logger.info("Assigned KV ip address")
 
-    logger.info("Connecting to kv store...")
+    #CREATE INSTANCES MAPPER EQUALS
+    dataMap["workerAddress"] = []
+    dataMap["workerName"] = []
+    dataMap["n_mappers"] = numberOfMappers
+    dataMap["n_reducers"] = numberOfReducers
+
+    nodeAddresses, nodeNames = spawnWorkers(
+        max(numberOfMappers, numberOfReducers), uniqueId)
+    dataMap["workerAddress"] = nodeAddresses
+    dataMap["workerName"] = nodeNames
+
+    logger.info("Waiting for workers nodes to start...")
+    tasks = []
+    for IP in range(len(dataMap["workerAddress"])):
+        p = Process(target=waitForWorker, args=(dataMap["workerAddress"], IP))
+        p.start()
+        tasks.append(p)
+    for task in tasks:
+        task.join()
+    logger.info("Worker nodes started...")
+
+    logger.info("Storing data in kv store...")
     while True:
         try:
             # initialize by connecting to the kvstore server
             dataStoreObj = xmlrpc.client.ServerProxy(
                 'http://' + kvIp + ':' + parser.get('address', 'rpc'),
                 allow_none=True)
-            break
-        except:
-            logger.info("Error Connecting to kv store...")
-            continue
-    dataMap[uniqueId]["kvObj"] = dataStoreObj
-    dataMap[uniqueId]["kvIP"] = kvIp
-    logger.info("Connected to kv store...")
-
-    #CREATE INSTANCES MAPPER EQUALS
-    dataMap[uniqueId]["workerAddress"] = []
-    dataMap[uniqueId]["workerName"] = []
-    dataMap[uniqueId]["workerObj"] = []
-    tasks = []
-    logger.info("creating workers....")
-
-    for worker in range(max(numberOfMappers, numberOfReducers)):
-        workerQueue = Queue()
-        p = Process(target=spawnWorkers, args=(uniqueId, worker, workerQueue))
-        p.start()
-        p.join()
-        dataMap[uniqueId]["workerAddress"].append(workerQueue.get())
-        dataMap[uniqueId]["workerName"].append(
-            parser.get('address', 'workerBaseName') + "-" + uniqueId + "-" +
-            str(worker))
-    logger.info("created workers....")
-
-    logger.info("Connecting to workers....")
-    for IP in range(len(dataMap[uniqueId]["workerAddress"])):
-        while True:
-            try:
-                logger.info("connecting to a worker....")
-                dataMap[uniqueId]["workerObj"].append(
-                    (xmlrpc.client.ServerProxy(
-                        'http://' + dataMap[uniqueId]["workerAddress"][IP] +
-                        ':' + parser.get('address', 'rpc'),
-                        allow_none=True)))
-                logger.info("connected to a worker....")
+            if (dataStoreObj.isKvStoreConnected() == True):
+                dataStoreObj.DataStore("init " + uniqueId + "\n" +
+                                       json.dumps(dataMap) + "\n")
                 break
-            except:
-                logger.info("error connecting to a worker....")
-                continue
-    logger.info("Connected to workers....")
-
-    #initialize data
-    dataMap[uniqueId]["mapperInput"] = {}
-    dataMap[uniqueId]["n_mappers"] = numberOfMappers
-    dataMap[uniqueId]["n_reducers"] = numberOfReducers
-
-    while True:
-        try:
-            logger.info("initializing kv folders....")
-            # #create folder in keyvalue
-            dataMap[uniqueId]["kvObj"].DataStore("init " + uniqueId + "\n")
-            break
         except:
-            time.sleep(15)
-            logger.info("error initializing kv folders....")
+            logger.info("Kv store not yet started....")
+            time.sleep(10)
             continue
-    logger.info("kv folders initialized....")
+    logger.info("Kv store started....")
     return uniqueId
 
 
 def run_mapred(uniqueId, inputPath, mapFunction, reducerFunction, outputPath):
-    global dataMap
     logger.info("run_mapred called....")
+    gcpObj = GCP()
 
-    inputDataProcessing(uniqueId, inputPath)
+    kvIp = gcpObj.get_IP_address(parser.get('gcp', 'project_id'),
+                                 parser.get('gcp', 'zone'),
+                                 parser.get('address', 'keyValueName'))
+    dataStoreObj = xmlrpc.client.ServerProxy('http://' + kvIp + ':' +
+                                             parser.get('address', 'rpc'),
+                                             allow_none=True)
+    file = "Data/" + uniqueId + "/datamap.json"
+    responseMessage = 'get-data' + '\n' + file + '\n'
+    dataMap = json.loads(dataStoreObj.DataStore(responseMessage))
+
+    dataMap = inputDataProcessing(uniqueId, inputPath, dataMap, dataStoreObj)
+    logger.info("Input processing done...")
 
     # distribute mapper tasks
     logger.info("distibuting tasks among mappers...")
     tasks = []
-    for worker in dataMap[uniqueId]["mapperInput"]:
+    for worker in dataMap["mapperInput"]:
         logger.info("distibuting a task among mapper number %s...", worker)
 
         p = Process(target=callMapperWorkers,
-                    args=(uniqueId, worker,
-                          dataMap[uniqueId]["mapperInput"][worker],
-                          mapFunction))
+                    args=(uniqueId, worker, dataMap["mapperInput"][worker],
+                          mapFunction, kvIp, dataMap["workerAddress"][worker],
+                          dataMap["workerName"][worker]))
         p.start()
         tasks.append(p)
 
@@ -201,41 +201,27 @@ def run_mapred(uniqueId, inputPath, mapFunction, reducerFunction, outputPath):
         task.join()
     logger.info("All a mapper done...")
 
-    #combine mapper output
-    time.sleep(15)
+    # #combine mapper output
+    intermediateCombiner(uniqueId, dataStoreObj, dataMap)
 
-    intermediateCombiner(uniqueId)
-    # time.sleep(15)
+    # distribute reducer tasks
+    callReducerWorkers(uniqueId, reducerFunction, kvIp, dataMap)
 
-    # ##ADJUST VMS
-    # if dataMap[uniqueId]["n_reducers"] < dataMap[uniqueId]["n_mappers"]:
-    #     # [n_reducers:]
-    #     #remove vms
-
-    #     pass
-    # elif dataMap[uniqueId]["n_reducers"] > dataMap[uniqueId]["n_mappers"]:
-    #     #add vms
-    #     # [n_mappers:n_reducers]
-
-    #     pass
-
-    #distribute reducer tasks
-    callReducerWorkers(uniqueId, reducerFunction)
-
-    #combine and store reducer outbut
-    res = combineAndStoreReducerOutput(uniqueId, outputPath)
+    # combine and store reducer outbut
+    res = combineAndStoreReducerOutput(uniqueId, outputPath, dataMap,
+                                       dataStoreObj)
 
     return res
 
 
-def combineAndStoreReducerOutput(uniqueId, outputPath):
-    global dataMap
+def combineAndStoreReducerOutput(uniqueId, outputPath, dataMap, dataStoreObj):
+
     reducerOutput = []
-    for worker in range(dataMap[uniqueId]["n_reducers"]):
+    for worker in range(dataMap["n_reducers"]):
         file = "Data/" + uniqueId + "/reducerOutput/output" + str(
             worker) + ".json"
         responseMessage = 'get-data' + '\n' + file + '\n'
-        jsonData = dataMap[uniqueId]["kvObj"].DataStore(responseMessage)
+        jsonData = dataStoreObj.DataStore(responseMessage)
         reducerOutput.append(json.loads(jsonData))
     output = json.dumps(reducerOutput)
     with open(outputPath, 'w') as f:
@@ -243,48 +229,64 @@ def combineAndStoreReducerOutput(uniqueId, outputPath):
     return output
 
 
-def callReducerWorkers(uniqueId, reducerFunction):
-    global dataMap
+def callReducerWorkers(uniqueId, reducerFunction, kvIp, dataMap):
+    gcpObj = GCP()
     tasks = []
-    for worker in range(dataMap[uniqueId]["n_reducers"]):
-        file = "Data/" + uniqueId + "/intermediateOutput/output" + str(
-            worker) + ".json"
-        # Retrieve worker object
-        obj = dataMap[uniqueId]["workerObj"][worker]
-        #call reducer worker and change status
-        p = Process(target=obj.worker,
-                    args=(uniqueId, worker, file, reducerFunction, "reducer",
-                          dataMap[uniqueId]["kvIP"]))
-        p.start()
-        tasks.append(p)
+    for worker in range(dataMap["n_reducers"]):
+        logger.info("calling a reducer...%s", worker)
+        #RETREIVE SAVED MAPPER OBJECT
+        if (gcpObj.isInstanceRunning(parser.get('gcp', 'project_id'),
+                                     parser.get('gcp', 'zone'),
+                                     dataMap["workerName"][worker])):
+            pass
+        else:
+            gcpObj.startInstance(parser.get('gcp', 'project_id'),
+                                 parser.get('gcp', 'zone'),
+                                 dataMap["workerName"][worker])
+        while True:
+            try:
+                workerObj = xmlrpc.client.ServerProxy(
+                    'http://' + dataMap["workerAddress"][worker] + ':' +
+                    parser.get('address', 'rpc'),
+                    allow_none=True)
+                if (workerObj.isWorkerConnected() == True):
+                    #CALL THE MAP WORKER
+                    file = "Data/" + uniqueId + "/intermediateOutput/output" + str(
+                        worker) + ".json"
+                    p = Process(target=workerObj.worker,
+                                args=(uniqueId, worker, file, reducerFunction,
+                                      "reducer", kvIp))
+                    p.start()
+                    tasks.append(p)
+                    break
+            except:
+                continue
     for task in tasks:
         task.join()
-    #change status when done
+    logger.info("reducer task done..")
     return
 
 
-def intermediateCombiner(uniqueId):
-    global dataMap
-    print(dataMap)
+def intermediateCombiner(uniqueId, dataStoreObj, dataMap):
 
     logger.info("Called intermediate combiner...")
     mapperOutput = []
-    for worker in dataMap[uniqueId]["mapperInput"]:
-        for task in range(len(dataMap[uniqueId]["mapperInput"][worker])):
+    for worker in dataMap["mapperInput"]:
+        for task in range(len(dataMap["mapperInput"][worker])):
             file = "Data/" + uniqueId + "/mapperOutput/output" + str(
                 worker) + str(task) + ".json"
             responseMessage = 'get-data' + '\n' + file + '\n'
 
             #retrieve from keystore
             logger.info("Fetching data for intermediate function...")
-            jsonData = dataMap[uniqueId]["kvObj"].DataStore(responseMessage)
+            jsonData = dataStoreObj.DataStore(responseMessage)
             mapperOutput.append(json.loads(jsonData))
 
     logger.info("Fetched all data for intermediate function...")
     logger.info("Preparing reducer data..")
 
     reducerInput = {}
-    for i in range(dataMap[uniqueId]["n_reducers"]):
+    for i in range(dataMap["n_reducers"]):
         reducerInput[str(i)] = {}
     # processing data
     for mapperTask in mapperOutput:
@@ -292,7 +294,7 @@ def intermediateCombiner(uniqueId):
             hashSum = 0
             for character in entry[0]:
                 hashSum += ord(character)
-            hashId = hashSum % dataMap[uniqueId]["n_reducers"]
+            hashId = hashSum % dataMap["n_reducers"]
             if entry[0] in reducerInput[str(hashId)]:
                 reducerInput[str(hashId)][entry[0]] += [entry]
             else:
@@ -306,44 +308,49 @@ def intermediateCombiner(uniqueId):
             reducerInput[reducer]) + '\n'
 
         #store in keystore
-        dataMap[uniqueId]["kvObj"].DataStore(data)
+        dataStoreObj.DataStore(data)
     logger.info("Stored reducer input data..")
 
 
-def callMapperWorkers(uniqueId, worker, files, mapFunction):
-    global dataMap
-
+def callMapperWorkers(uniqueId, worker, files, mapFunction, kvIp, workerIp,
+                      workerName):
+    gcpObj = GCP()
     for i in range(len(files)):
+        logger.info("calling a mapper with task...%s", i)
+        #RETREIVE SAVED MAPPER OBJECT
+        if (gcpObj.isInstanceRunning(parser.get('gcp', 'project_id'),
+                                     parser.get('gcp', 'zone'), workerName)):
+            pass
+        else:
+            gcpObj.startInstance(parser.get('gcp', 'project_id'),
+                                 parser.get('gcp', 'zone'), workerName)
         while True:
             try:
-                logger.info("calling a mapper with task...%s", i)
-                #RETREIVE SAVED MAPPER OBJECT
-                obj = dataMap[uniqueId]["workerObj"][worker]
-
-                #CALL THE MAP WORKER AND CHANGE STATUS TO BUSY
-                p = Process(target=obj.worker,
-                            args=(uniqueId, worker, files[i], mapFunction,
-                                  "mapper", dataMap[uniqueId]["kvIP"], i))
-                p.start()
-                p.join()
-                logger.info("waiting for a mapper...")
-                break
+                workerObj = xmlrpc.client.ServerProxy(
+                    'http://' + workerIp + ':' + parser.get('address', 'rpc'),
+                    allow_none=True)
+                if (workerObj.isWorkerConnected() == True):
+                    #CALL THE MAP WORKER
+                    p = Process(target=workerObj.worker,
+                                args=(uniqueId, worker, files[i], mapFunction,
+                                      "mapper", kvIp, i))
+                    p.start()
+                    p.join()
+                    logger.info("waiting for a mapper...")
+                    break
             except:
-                logger.info("error calling to a worker....")
-                time.sleep(10)
                 continue
 
     logger.info("tasks for a mapper is done...")
-
     return
 
 
-def inputDataProcessing(uniqueId, inputPath):
+def inputDataProcessing(uniqueId, inputPath, dataMap, dataStoreObj):
     logger.info("processing input....")
+    dataMap["mapperInput"] = {}
+    for i in range(dataMap["n_mappers"]):
+        dataMap["mapperInput"][i] = []
 
-    global dataMap
-    for i in range(dataMap[uniqueId]["n_mappers"]):
-        dataMap[uniqueId]["mapperInput"][i] = []
     #generate chunks for given input data
     #from directory
     if (os.path.isdir(inputPath)):
@@ -353,7 +360,7 @@ def inputDataProcessing(uniqueId, inputPath):
         i = 0
         j = 0
         for file in allFiles:
-            if i == dataMap[uniqueId]["n_mappers"]:
+            if i == dataMap["n_mappers"]:
                 i = 0
             f = open(inputPath + file, 'r')
             data = {}
@@ -362,22 +369,12 @@ def inputDataProcessing(uniqueId, inputPath):
             data = 'set-data' + ' ' + path + '\n' + json.dumps(data) + '\n'
 
             ##STORE CHUNKS IN KEYVALUE STORE
-            while True:
-                try:
-                    logger.info("storing chunks in kv store....")
-
-                    # #create folder in keyvalue
-                    dataMap[uniqueId]["kvObj"].DataStore(data)
-                    break
-                except:
-                    logger.info("error storing chunks in kv store....")
-                    time.sleep(15)
-
-                    continue
-                    logger.info("stored chunks in kv store....")
+            logger.info("storing chunks in kv store....")
+            dataStoreObj.DataStore(data)
+            logger.info("stored chunks in kv store....")
 
             #SAVE FILENAME IN ARR OF MAPPER INPUT
-            dataMap[uniqueId]["mapperInput"][i].append(path)
+            dataMap["mapperInput"][i].append(path)
             i += 1
             j += 1
     #from file
@@ -393,7 +390,7 @@ def inputDataProcessing(uniqueId, inputPath):
             content = inputPath
             file = "InputString"
         content = content.split()
-        chunksize = ceil(len(content) / dataMap[uniqueId]["n_mappers"])
+        chunksize = ceil(len(content) / dataMap["n_mappers"])
         chunk = ""
         s = 0
         res = []
@@ -409,7 +406,7 @@ def inputDataProcessing(uniqueId, inputPath):
         i = 0
         j = 0
         for chunk in res:
-            if i == dataMap[uniqueId]["n_mappers"]:
+            if i == dataMap["n_mappers"]:
                 i = 0
             data = {}
             data[file] = chunk
@@ -417,24 +414,20 @@ def inputDataProcessing(uniqueId, inputPath):
             data = 'set-data' + ' ' + path + '\n' + json.dumps(data) + '\n'
 
             ##STORE CHUNKS IN KEYVALUE STORE
-            while True:
-                try:
-                    logger.info("storing chunks in kv store....")
-
-                    # #create folder in keyvalue
-                    dataMap[uniqueId]["kvObj"].DataStore(data)
-                    break
-                except:
-                    logger.info("error storing chunks in kv store....")
-                    time.sleep(15)
-
-                    continue
+            logger.info("storing chunks in kv store....")
+            # #create folder in keyvalue
+            dataStoreObj.DataStore(data)
             logger.info("stored chunks in kv store....")
 
             #SAVE FILENAME IN ARR OF MAPPER INPUT
-            dataMap[uniqueId]["mapperInput"][i].append(path)
+            dataMap["mapperInput"][i].append(path)
             i += 1
             j += 1
+
+    path = "Data/" + uniqueId + "/datamap.json"
+    data = 'set-data' + ' ' + path + '\n' + json.dumps(dataMap) + '\n'
+    dataStoreObj.DataStore(data)
+    return dataMap
 
 
 if __name__ == '__main__':
@@ -465,11 +458,6 @@ if __name__ == '__main__':
     server.register_function(run_mapred, 'run_mapred')
     server.register_function(init_cluster, 'init_cluster')
     server.register_function(destroy_cluster, 'destroy_cluster')
-
-    # res1 = init_cluster(2, 3)
-    # res2 = run_mapred(res1, "./Data/test.txt", "WordCountMapper",
-    #                   "WordCountReducer", "outputPath.txt")
-    # destroy_cluster(res1)
 
     # run the rpc server
     try:
