@@ -45,7 +45,7 @@ def destroy_cluster(uniqueId):
     logger.info('destroy_cluster FUNCTION CALLED')
     start_time = time.time()
 
-    destroy_cluster_process.destroy_cluster_process(uniqueId, logger)
+    destroy_cluster_process.destroy_cluster_process(uniqueId)
     logger.info('destroy_cluster FUNCTION TASK COMPLETED')
     logger.info('TIME TAKEN BY destroy_cluster: %s', time.time() - start_time)
     return
