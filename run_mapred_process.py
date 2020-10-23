@@ -262,7 +262,6 @@ def callReducerWorkers(uniqueId, reducerFunction, dataMap, logger):
                                 args=(uniqueId, worker, file, reducerFunction,
                                       "reducer", kvIp))
                     p.start()
-                    tasks.append(p)
                     if workerObj.status() == "FINISHED":
                         break
             except:
