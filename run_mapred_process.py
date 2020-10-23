@@ -179,7 +179,9 @@ def callMapperWorkers(uniqueId, worker, mapFunction, dataMap, logger):
                     p.start()
                     p.join()
                     logger.info("waiting for a mapper...")
+                    print(workerObj.status())
                     if workerObj.status() == "FINISHED":
+                        print("finished a task")
                         break
             except:
                 continue
