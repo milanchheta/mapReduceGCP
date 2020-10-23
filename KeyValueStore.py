@@ -112,6 +112,7 @@ def setData(arguements):
 def initFolders(arguements):
     logger.info("called initFolders")
     id = arguements[0].split()[1]
+    datamap = json.loads(arguements[1])
     if (os.path.exists("./Data")):
         pass
     else:
@@ -122,10 +123,13 @@ def initFolders(arguements):
         pass
     else:
         os.mkdir(path)
+        with open("./" + path + "/datamap.json", 'w') as jsonFile:
+            json.dump(datamap, jsonFile)
         os.mkdir(path + "/chunks")
         os.mkdir(path + "/mapperOutput")
         os.mkdir(path + "/intermediateOutput")
         os.mkdir(path + "/reducerOutput")
+
     logger.info("done initFolders")
     return
 
