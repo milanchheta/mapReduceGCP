@@ -157,7 +157,6 @@ def callMapperWorkers(uniqueId, worker, mapFunction, dataMap, logger):
     count = 0
     for i in range(len(dataMap["mapperInput"][worker])):
         taskQueue.append(Queue())
-        taskQueue[i].put()
 
     for i in range(len(dataMap["mapperInput"][worker])):
         logger.info("calling a mapper with task...%s", i)
@@ -248,7 +247,6 @@ def callReducerWorkers(uniqueId, reducerFunction, dataMap, logger):
     taskQueue = []
     for i in range(dataMap["n_reducers"]):
         taskQueue.append(Queue())
-        taskQueue[i].put()
     count = 0
     for worker in range(dataMap["n_reducers"]):
 
