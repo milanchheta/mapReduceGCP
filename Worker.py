@@ -27,37 +27,38 @@ def status():
 ##store data to key value store
 def storeOutputData(dataStoreObj, result, path):
     try:
-        logger.info("storing datastore object")
+        logger.info("STORING OUTPUT DATA")
         data = 'set-data' + ' ' + path + '\n' + json.dumps(result) + '\n'
         dataStoreObj.DataStore(data)
-        logger.info("stored datastore object")
         return
     except Exception as e:
+        logger.info("ERROR STORING OUTPUT DATA")
         raise e
 
 
 ##get data from key value store
 def getInputData(file, dataStoreObj):
     try:
-        logger.info("fetching datastore object")
+        logger.info("FETCHING INPUT DATA FOR OPERATION")
         responseMessage = 'get-data' + '\n' + file + '\n'
         jsonData = dataStoreObj.DataStore(responseMessage)
         jsonData = json.loads(jsonData)
-        logger.info("fetched datastore object")
         return jsonData
     except Exception as e:
+        logger.info("ERROR FETCHING INPUT DATA FOR OPERATION")
+
         raise e
 
 
 def worker(uniqueId, worker, file, passedFunction, caller, kvIP, taskNumber=0):
-    logger.info("called worker with worker number %s", worker)
-    logger.info("called worker with task number %s", taskNumber)
-    logger.info("called worker with file name %s", file)
-    logger.info("called worker with funciton %s", passedFunction)
-    logger.info("called worker from %s", caller)
+
+    logger.info(
+        "WORKER: {} CALLED WITH TASK: {} FOR {} TASK WITH PASSED FUCNTION: {}".
+        format(worker, taskNumber, caller, passedFunction))
     global i
     global workerStatus
     workerStatus = "RUNNING"
+
     #function map of available applications
     functionMap = {
         "mapper": {
@@ -69,47 +70,39 @@ def worker(uniqueId, worker, file, passedFunction, caller, kvIP, taskNumber=0):
             "WordCountReducer.py": WordCountReducer
         }
     }
+
     try:
-        logger.info("creating datastore object")
         ##connect to the keyvaluestore
         dataStoreObj = xmlrpc.client.ServerProxy(
             'http://' + kvIP + ':' + parser.get('address', 'keyValuePort'),
             allow_none=True)
 
         result = getInputData(file, dataStoreObj)
-        # operateFunc = marshal.loads(passedFunction)
-        if i == 1 or i == 4:
-            logger.info("Simulating fault tolerance test %s", i)
-            raise Exception('Simulating fault tolerance test')
-        i += 1
+
         if caller == "mapper":
             for file in result:
                 filename = file
                 res = result[filename]
+            logger.info('CALLING FUNCTION FOR %s', passedFunction)
             resultData = functionMap[caller][passedFunction](res, filename)
-            # resultData = operateFunc(res, filename)
             path = "Data/" + uniqueId + "/mapperOutput/output" + str(
                 worker) + str(taskNumber) + ".json"
+
         if caller == "reducer":
+            logger.info('CALLING FUNCTION FOR %s', passedFunction)
             resultData = functionMap[caller][passedFunction](result)
-            # resultData = operateFunc(res, filename)
             path = "Data/" + uniqueId + "/reducerOutput/output" + str(
                 worker) + ".json"
-
-        logger.info("storing output to kv store %s", path)
 
         ##Send data to keyvalue store
         storeOutputData(dataStoreObj, resultData, path)
 
-        logger.info("task done")
         workerStatus = "FINISHED"
+        logger.info('RETURNNING FROM WORKER %s ', worker)
 
         return
     except Exception as e:
-        if i == 1 or i == 4:
-            logger.info("Simulated fault tolerance test")
-            workerStatus = "ERROR"
-        i += 1
+        workerStatus = "ERROR"
         raise e
 
 
@@ -145,7 +138,7 @@ if __name__ == '__main__':
 
     #run the rpc server
     try:
-        logger.info('Worker running')
+        logger.info('WORKER NODE RUNNING ON PORT: %s', str(portNumber))
         server.serve_forever()
     except Exception:
-        logger.info('Error while running the server')
+        logger.info('CLOSING THE SERVER')
