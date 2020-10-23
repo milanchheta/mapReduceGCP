@@ -131,7 +131,7 @@ def initFolders(arguements):
         os.mkdir(path + "/reducerOutput")
 
     logger.info("done initFolders")
-    return
+    return True
 
 
 #main keyvalue store function
