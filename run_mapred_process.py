@@ -34,7 +34,7 @@ def run_mapred_process(uniqueId, inputPath, mapFunction, reducerFunction,
     gcpObj = GCP()
     file = "Data/" + uniqueId + "/datamap.json"
     responseMessage = 'get-data' + '\n' + file + '\n'
-    dataMap = json.dumps(interactWithKv(responseMessage))
+    dataMap = json.loads(interactWithKv(responseMessage))
 
     dataMap = inputDataProcessing(uniqueId, inputPath, dataMap, logger)
     logger.info("Input processing done...")
