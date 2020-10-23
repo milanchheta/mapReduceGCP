@@ -30,7 +30,6 @@ def destroy_cluster(uniqueId):
     responseMessage = 'get-data' + '\n' + file + '\n'
     dataMap = json.loads(dataStoreObj.DataStore(responseMessage))
 
-    dataMap = inputDataProcessing(uniqueId, inputPath, dataMap, dataStoreObj)
     for worker in dataMap["workerName"]:
         gcpObj.delete_instance(parser.get('gcp', 'project_id'),
                                parser.get('gcp', 'zone'), worker)
@@ -458,11 +457,14 @@ if __name__ == '__main__':
     server.register_function(run_mapred, 'run_mapred')
     server.register_function(init_cluster, 'init_cluster')
     server.register_function(destroy_cluster, 'destroy_cluster')
-
+    res1 = init_cluster(2, 3)
+    print(res1)
+    res2 = run_mapred(res1, "./Data/test.txt", "InvertedIndexMapper.py",
+                      "InvertedIndexReducer.py", "outputPath.txt")
     # run the rpc server
-    try:
-        logger.info('Master running on port %s', str(port))
-        server.serve_forever()
-    except Exception:
-        server.server_close()
-        logger.info('Closing the server')
+    # try:
+    #     logger.info('Master running on port %s', str(port))
+    #     server.serve_forever()
+    # except Exception:
+    #     server.server_close()
+    #     logger.info('Closing the server')
