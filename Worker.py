@@ -114,12 +114,12 @@ def worker(uniqueId, worker, file, passedFunction, caller, kvIP, taskNumber=0):
             filename = file
             res = result[filename]
         resultData = functionMap[caller][passedFunction](res, filename)
-        resultData = operateFunc(res, filename)
+        # resultData = operateFunc(res, filename)
         path = "Data/" + uniqueId + "/mapperOutput/output" + str(worker) + str(
             taskNumber) + ".json"
     if caller == "reducer":
         resultData = functionMap[caller][passedFunction](result)
-        resultData = operateFunc(res, filename)
+        # resultData = operateFunc(res, filename)
         path = "Data/" + uniqueId + "/reducerOutput/output" + str(
             worker) + ".json"
 
