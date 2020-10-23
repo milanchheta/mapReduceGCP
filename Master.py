@@ -447,13 +447,13 @@ if __name__ == '__main__':
     server.register_function(run_mapred, 'run_mapred')
     server.register_function(init_cluster, 'init_cluster')
     server.register_function(destroy_cluster, 'destroy_cluster')
-    res1 = init_cluster(1, 1)
-    print(res1)
-    res2 = run_mapred(res1, "./Data/test.txt", "WordCountMapper.py",
-                      "WordCountReducer.py", "outputPath.txt")
-    # try:
-    #     logger.info('Master running on port %s', str(port))
-    #     server.serve_forever()
-    # except Exception:
-    #     server.server_close()
-    #     logger.info('Closing the server')
+    # res1 = init_cluster(1, 1)
+    # print(res1)
+    # res2 = run_mapred(res1, "./Data/test.txt", "WordCountMapper.py",
+    #                   "WordCountReducer.py", "outputPath.txt")
+    try:
+        logger.info('Master running on port %s', str(port))
+        server.serve_forever()
+    except Exception:
+        server.server_close()
+        logger.info('Closing the server')
