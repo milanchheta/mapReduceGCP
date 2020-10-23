@@ -11,6 +11,8 @@ from mappers.WordCountMapper import WordCountMapper
 from reducers.InvertedIndexReducer import InvertedIndexReducer
 from reducers.WordCountReducer import WordCountReducer
 
+i = 0
+
 
 def isWorkerConnected():
     return True
@@ -47,6 +49,7 @@ def worker(uniqueId, worker, file, passedFunction, caller, kvIP, taskNumber=0):
     logger.info("called worker with file name %s", file)
     logger.info("called worker with funciton %s", passedFunction)
     logger.info("called worker from %s", caller)
+    global i
 
     #function map of available applications
     functionMap = {
@@ -68,7 +71,9 @@ def worker(uniqueId, worker, file, passedFunction, caller, kvIP, taskNumber=0):
 
         result = getInputData(file, dataStoreObj)
         # operateFunc = marshal.loads(passedFunction)
-
+        if i == 1:
+            raise Exception('Simulating fault tolerance test')
+        i += 1
         if caller == "mapper":
             for file in result:
                 filename = file
