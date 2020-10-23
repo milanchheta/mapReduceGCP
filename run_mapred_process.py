@@ -10,39 +10,9 @@ from math import ceil
 parser = ConfigParser()
 parser.read('config.ini')
 
-
-def interactWithKv(responseMessage):
-    gcpObj = GCP()
-    while True:
-        try:
-            kvIp = gcpObj.get_IP_address(parser.get('gcp', 'project_id'),
-                                         parser.get('gcp', 'zone'),
-                                         parser.get('address', 'keyValueName'))
-            dataStoreObj = xmlrpc.client.ServerProxy(
-                'http://' + kvIp + ':' + parser.get('address', 'rpc'),
-                allow_none=True)
-            if (dataStoreObj.isKvStoreConnected() == True):
-                res = dataStoreObj.DataStore(responseMessage)
-                return res
-        except:
-            continue
-
-
-def spawnSingleWorker(uniqueId, worker, workerQueue, logger):
-    gcpObj = GCP()
-    logger.info("CREATING WORKER VM INSTANCE: %s", worker)
-    try:
-        extIP = gcpObj.get_IP_address(
-            parser.get('gcp', 'project_id'), parser.get('gcp', 'zone'),
-            parser.get('address', 'workerBaseName') + "-" + uniqueId + "-" +
-            str(worker))
-        workerQueue.put(extIP)
-    except:
-        extIP = gcpObj.create_instance(
-            parser.get('gcp', 'project_id'), parser.get('gcp', 'zone'),
-            parser.get('address', 'workerBaseName') + "-" + uniqueId + "-" +
-            str(worker), parser.get('gcp', 'worker-startup'))
-        workerQueue.put(extIP)
+from init_cluster_process import spawnSingleWorker
+from init_cluster_process import interactWithKv
+from init_cluster_process import waitForWorker
 
 
 def run_mapred_process(uniqueId, inputPath, mapFunction, reducerFunction,
@@ -71,8 +41,7 @@ def run_mapred_process(uniqueId, inputPath, mapFunction, reducerFunction,
                 time.time() - start_time)
 
     if (dataMap["n_reducers"] > dataMap["n_mappers"]):
-        nodeAddress = dataMap["workerAddress"]
-        nodeName = dataMap["workerName"]
+        logger.info("SPAWNING NEW VMS FOR REDUCERS")
         tasks = []
         workerQueue = []
         for i in range(dataMap["n_reducers"], dataMap["n_mappers"]):
@@ -80,7 +49,7 @@ def run_mapred_process(uniqueId, inputPath, mapFunction, reducerFunction,
             p = Process(target=spawnSingleWorker,
                         args=(uniqueId, i, workerQueue[i], logger))
             p.start()
-            nodeName.append(
+            dataMap["workerName"].append(
                 parser.get('address', 'workerBaseName') + "-" + uniqueId +
                 "-" + str(i))
             tasks.append(p)
@@ -88,9 +57,18 @@ def run_mapred_process(uniqueId, inputPath, mapFunction, reducerFunction,
             task.join()
             pass
         for i in range(len(workerQueue)):
-            nodeAddress.append(workerQueue[i].get())
-
+            dataMap["workerAddress"].append(workerQueue[i].get())
+        dataMap["workerName"]
+        tasks = []
+        for IP in range(dataMap["n_reducers"], dataMap["n_mappers"]):
+            p = Process(target=waitForWorker,
+                        args=(dataMap["workerAddress"], IP, logger))
+            p.start()
+        tasks.append(p)
+        for task in tasks:
+            task.join()
     elif (dataMap["n_reducers"] < dataMap["n_mappers"]):
+        logger.info("DELETING EXTRA VMS")
         for i in range(dataMap["n_reducers"], dataMap["n_mappers"]):
             gcpObj.delete_instance(parser.get('gcp', 'project_id'),
                                    parser.get('gcp', 'zone'),
