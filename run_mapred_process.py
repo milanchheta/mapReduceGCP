@@ -153,10 +153,6 @@ def inputDataProcessing(uniqueId, inputPath, dataMap, logger):
 
 def callMapperWorkers(uniqueId, worker, mapFunction, dataMap, logger):
     gcpObj = GCP()
-    taskQueue = []
-    count = 0
-    for i in range(len(dataMap["mapperInput"][worker])):
-        taskQueue.append(Queue())
 
     for i in range(len(dataMap["mapperInput"][worker])):
         logger.info("calling a mapper with task...%s", i)
@@ -179,19 +175,14 @@ def callMapperWorkers(uniqueId, worker, mapFunction, dataMap, logger):
                     p = Process(target=workerObj.worker,
                                 args=(uniqueId, worker,
                                       dataMap["mapperInput"][worker][i],
-                                      mapFunction, "mapper", kvIp,
-                                      taskQueue[i], i))
+                                      mapFunction, "mapper", kvIp, i))
                     p.start()
                     p.join()
                     logger.info("waiting for a mapper...")
-
-                    if (taskQueue[i].get() == "DONE"):
-                        count += 1
-                        break
+                    break
             except:
                 continue
-    if count != len(dataMap["mapperInput"][worker]):
-        callMapperWorkers(uniqueId, worker, mapFunction, dataMap, logger)
+
     logger.info("tasks for a mapper is done...")
     return
 
@@ -244,10 +235,7 @@ def intermediateCombiner(uniqueId, dataMap, logger):
 def callReducerWorkers(uniqueId, reducerFunction, dataMap, logger):
     gcpObj = GCP()
     tasks = []
-    taskQueue = []
-    for i in range(dataMap["n_reducers"]):
-        taskQueue.append(Queue())
-    count = 0
+
     for worker in range(dataMap["n_reducers"]):
 
         while True:
@@ -268,7 +256,7 @@ def callReducerWorkers(uniqueId, reducerFunction, dataMap, logger):
                         worker) + ".json"
                     p = Process(target=workerObj.worker,
                                 args=(uniqueId, worker, file, reducerFunction,
-                                      "reducer", kvIp, taskQueue[i]))
+                                      "reducer", kvIp))
                     p.start()
                     tasks.append(p)
 
@@ -276,10 +264,6 @@ def callReducerWorkers(uniqueId, reducerFunction, dataMap, logger):
                 continue
     for i in range(len(tasks)):
         tasks[i].join()
-        if (taskQueue[i].get() == "DONE"):
-            count += 1
-    if count != dataMap["n_reducers"]:
-        callReducerWorkers(uniqueId, reducerFunction, dataMap, logger)
 
     logger.info("reducer task done..")
     return
