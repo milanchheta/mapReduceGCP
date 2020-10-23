@@ -45,12 +45,7 @@ def run_mapred_process(uniqueId, inputPath, mapFunction, reducerFunction,
     for worker in dataMap["mapperInput"]:
         logger.info("distibuting a task among mapper number %s...", worker)
         p = Process(target=callMapperWorkers,
-                    args=(uniqueId, worker, mapFunction,
-                          gcpObj.get_IP_address(
-                              parser.get('gcp', 'project_id'),
-                              parser.get('gcp', 'zone'),
-                              parser.get('address',
-                                         'keyValueName')), dataMap, logger))
+                    args=(uniqueId, worker, mapFunction, dataMap, logger))
         p.start()
         tasks.append(p)
 
@@ -62,12 +57,7 @@ def run_mapred_process(uniqueId, inputPath, mapFunction, reducerFunction,
     intermediateCombiner(uniqueId, dataMap, logger)
 
     # distribute reducer tasks
-    callReducerWorkers(
-        uniqueId, reducerFunction,
-        gcpObj.get_IP_address(parser.get('gcp', 'project_id'),
-                              parser.get('gcp', 'zone'),
-                              parser.get('address', 'keyValueName')), dataMap,
-        logger)
+    callReducerWorkers(uniqueId, reducerFunction, dataMap, logger)
 
     # combine and store reducer outbut
     res = combineAndStoreReducerOutput(uniqueId, outputPath, dataMap, logger)
@@ -161,7 +151,7 @@ def inputDataProcessing(uniqueId, inputPath, dataMap, logger):
     return dataMap
 
 
-def callMapperWorkers(uniqueId, worker, mapFunction, kvIp, dataMap, logger):
+def callMapperWorkers(uniqueId, worker, mapFunction, dataMap, logger):
     gcpObj = GCP()
     for i in range(len(dataMap["mapperInput"][worker])):
         logger.info("calling a mapper with task...%s", i)
@@ -177,6 +167,10 @@ def callMapperWorkers(uniqueId, worker, mapFunction, kvIp, dataMap, logger):
                     allow_none=True)
                 if (workerObj.isWorkerConnected() == True):
                     #CALL THE MAP WORKER
+                    kvIp = gcpObj.get_IP_address(
+                        parser.get('gcp', 'project_id'),
+                        parser.get('gcp', 'zone'),
+                        parser.get('address', 'keyValueName'))
                     p = Process(target=workerObj.worker,
                                 args=(uniqueId, worker,
                                       dataMap["mapperInput"][worker][i],
@@ -237,7 +231,7 @@ def intermediateCombiner(uniqueId, dataMap, logger):
     logger.info("Stored reducer input data..")
 
 
-def callReducerWorkers(uniqueId, reducerFunction, kvIp, dataMap, logger):
+def callReducerWorkers(uniqueId, reducerFunction, dataMap, logger):
     gcpObj = GCP()
     tasks = []
     for worker in range(dataMap["n_reducers"]):
@@ -252,6 +246,10 @@ def callReducerWorkers(uniqueId, reducerFunction, kvIp, dataMap, logger):
                     allow_none=True)
                 if (workerObj.isWorkerConnected() == True):
                     #CALL THE MAP WORKER
+                    kvIp = gcpObj.get_IP_address(
+                        parser.get('gcp', 'project_id'),
+                        parser.get('gcp', 'zone'),
+                        parser.get('address', 'keyValueName'))
                     file = "Data/" + uniqueId + "/intermediateOutput/output" + str(
                         worker) + ".json"
                     p = Process(target=workerObj.worker,
