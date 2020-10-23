@@ -183,6 +183,7 @@ def callMapperWorkers(uniqueId, worker, mapFunction, dataMap, logger):
                     if workerObj.status() == "FINISHED":
                         print("finished a task")
                         break
+                    print("restarting")
             except:
                 continue
 
