@@ -8,6 +8,7 @@ import json
 import os, stat
 import logging
 from configparser import ConfigParser
+import shutil
 
 
 def isKvStoreConnected():
@@ -116,6 +117,19 @@ def setData(arguements):
         raise e
 
 
+def deleteData(arguements):
+    try:
+        id = arguements[0].split()[1]
+        logger.info("DELETING DATA FOLDER FOR UUID %s", id)
+        path = "./Data/" + str(id)
+        shutil.rmtree(path)
+    except Exception as e:
+        logger.info("ERROR DELETING DATA FOLDER FOR UUID %s", id)
+
+        raise e
+    pass
+
+
 def initFolders(arguements):
     try:
         id = arguements[0].split()[1]
@@ -199,7 +213,8 @@ if __name__ == '__main__':
         "set": set,
         "init": initFolders,
         'get-data': getData,
-        'set-data': setData
+        'set-data': setData,
+        'delete-data': deleteData
     }
 
     #run the rpc server
