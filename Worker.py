@@ -43,7 +43,14 @@ def getInputData(file, dataStoreObj):
         raise e
 
 
-def worker(uniqueId, worker, file, passedFunction, caller, kvIP, taskNumber=0):
+def worker(uniqueId,
+           worker,
+           file,
+           passedFunction,
+           caller,
+           kvIP,
+           taskQueue,
+           taskNumber=0):
     logger.info("called worker with worker number %s", worker)
     logger.info("called worker with task number %s", taskNumber)
     logger.info("called worker with file name %s", file)
@@ -72,6 +79,8 @@ def worker(uniqueId, worker, file, passedFunction, caller, kvIP, taskNumber=0):
         result = getInputData(file, dataStoreObj)
         # operateFunc = marshal.loads(passedFunction)
         if i == 1:
+            logger.info("Simulating fault tolerance test")
+            taskQueue.put("ERROR")
             raise Exception('Simulating fault tolerance test')
         i += 1
         if caller == "mapper":
@@ -94,7 +103,13 @@ def worker(uniqueId, worker, file, passedFunction, caller, kvIP, taskNumber=0):
         storeOutputData(dataStoreObj, resultData, path)
 
         logger.info("mapper task done")
+        taskQueue.put("DONE")
+
+        return
     except Exception as e:
+        if i == 1:
+            logger.info("Simulated fault tolerance test")
+        taskQueue.put("ERROR")
         raise e
 
 
