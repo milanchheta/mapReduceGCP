@@ -31,6 +31,7 @@ def interactWithKv(responseMessage):
 def run_mapred_process(uniqueId, inputPath, mapFunction, reducerFunction,
                        outputPath, logger):
     logger.info("run_mapred function called....")
+    print("1")
     gcpObj = GCP()
     file = "Data/" + uniqueId + "/datamap.json"
     responseMessage = 'get-data' + '\n' + file + '\n'
@@ -38,6 +39,7 @@ def run_mapred_process(uniqueId, inputPath, mapFunction, reducerFunction,
 
     dataMap = inputDataProcessing(uniqueId, inputPath, dataMap, logger)
     logger.info("Input processing done...")
+    print("2")
 
     # distribute mapper tasks
     logger.info("distibuting tasks among mappers...")
