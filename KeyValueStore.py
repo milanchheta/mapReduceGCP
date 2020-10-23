@@ -44,6 +44,7 @@ def set(arguements):
 
 #get function of the keyvalue store to get value of specified key
 def get(arguements):
+
     line1 = arguements[0]
     key = line1[1]
     res = ''
@@ -67,71 +68,80 @@ def get(arguements):
 ##FUNCTION USED TO FETCH STORED DATA BY MAPREDUCE PROCESSES
 def getData(arguements):
     logger.info("called getData")
-    filepath = arguements[1]
-    logger.info("getting data at path: %s", filepath)
-    while thread_lock.locked() == True:
-        continue
-    thread_lock.acquire()
     try:
-        d = open('./' + filepath, )
-        data = json.load(d)
-        data = json.dumps(data)
-        logger.info("fetched data")
-    except:
-        logger.info("Error getting data")
+        filepath = arguements[1]
+        logger.info("getting data at path: %s", filepath)
+        while thread_lock.locked() == True:
+            continue
+        thread_lock.acquire()
+        try:
+            d = open('./' + filepath, )
+            data = json.load(d)
+            data = json.dumps(data)
+            logger.info("fetched data")
+        except:
+            logger.info("Error getting data")
 
-    thread_lock.release()
-    logger.info("done getData")
-    return data
+        thread_lock.release()
+        logger.info("done getData")
+        return data
+    except Exception as e:
+        raise e
 
 
 def setData(arguements):
     logger.info("called setData")
-    path = arguements[0].split()[1]
-    logger.info("storing data at path: %s", path)
-    value = arguements[1]
-    while thread_lock.locked() == True:
-        continue
-    thread_lock.acquire()
-    res = 'NOT-STORED\r\n'
     try:
+        path = arguements[0].split()[1]
+        logger.info("storing data at path: %s", path)
+        value = arguements[1]
+        while thread_lock.locked() == True:
+            continue
+        thread_lock.acquire()
         res = 'NOT-STORED\r\n'
-        dataValue = json.loads(value)
-        with open("./" + path, 'w') as jsonFile:
-            json.dump(dataValue, jsonFile)
-            res = 'STORED\r\n'
-        logger.info("stored data")
-    except:
-        logger.info("Error storing data")
+        try:
+            res = 'NOT-STORED\r\n'
+            dataValue = json.loads(value)
+            with open("./" + path, 'w') as jsonFile:
+                json.dump(dataValue, jsonFile)
+                res = 'STORED\r\n'
+            logger.info("stored data")
+        except:
+            logger.info("Error storing data")
 
-        res = 'NOT-STORED\r\n'
-    thread_lock.release()
-    return res
+            res = 'NOT-STORED\r\n'
+        thread_lock.release()
+        return res
+    except Exception as e:
+        raise e
 
 
 def initFolders(arguements):
     logger.info("called initFolders")
-    id = arguements[0].split()[1]
-    datamap = json.loads(arguements[1])
-    if (os.path.exists("./Data")):
-        pass
-    else:
-        os.mkdir("./Data")
+    try:
+        id = arguements[0].split()[1]
+        datamap = json.loads(arguements[1])
+        if (os.path.exists("./Data")):
+            pass
+        else:
+            os.mkdir("./Data")
 
-    path = "./Data/" + str(id)
-    if (os.path.exists(path)):
-        pass
-    else:
-        os.mkdir(path)
-        with open("./" + path + "/datamap.json", 'w') as jsonFile:
-            json.dump(datamap, jsonFile)
-        os.mkdir(path + "/chunks")
-        os.mkdir(path + "/mapperOutput")
-        os.mkdir(path + "/intermediateOutput")
-        os.mkdir(path + "/reducerOutput")
+        path = "./Data/" + str(id)
+        if (os.path.exists(path)):
+            pass
+        else:
+            os.mkdir(path)
+            with open("./" + path + "/datamap.json", 'w') as jsonFile:
+                json.dump(datamap, jsonFile)
+            os.mkdir(path + "/chunks")
+            os.mkdir(path + "/mapperOutput")
+            os.mkdir(path + "/intermediateOutput")
+            os.mkdir(path + "/reducerOutput")
 
-    logger.info("done initFolders")
-    return True
+        logger.info("done initFolders")
+        return True
+    except Exception as e:
+        raise e
 
 
 #main keyvalue store function
