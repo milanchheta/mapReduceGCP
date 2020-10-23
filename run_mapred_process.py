@@ -71,7 +71,7 @@ def run_mapred_process(uniqueId, inputPath, mapFunction, reducerFunction,
                 time.time() - start_time)
 
     if (dataMap["n_reducers"] > dataMap["n_mappers"]):
-        nodeAddress = dataMap["nodeAddress"]
+        nodeAddress = dataMap["workerAddress"]
         nodeName = dataMap["workerName"]
         tasks = []
         workerQueue = []

@@ -68,7 +68,7 @@ def spawnWorkers(numOfWorkers, uniqueId, logger):
 
 
 def waitForWorker(worker, ip, logger):
-    logger.info("WAITING FOR WORKER %s TO START THE RPC SERVER.", worker)
+    logger.info("WAITING FOR WORKER %s TO START THE RPC SERVER.", ip)
     while True:
         try:
             workerObj = xmlrpc.client.ServerProxy(
