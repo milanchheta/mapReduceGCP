@@ -19,7 +19,7 @@ import destroy_cluster_process
 
 
 def destroy_cluster(uniqueId):
-    destroy_cluster_process.destroy_cluster_process(uniqueId.logger)
+    destroy_cluster_process.destroy_cluster_process(uniqueId, logger)
     return
 
 

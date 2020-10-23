@@ -42,6 +42,7 @@ def run_mapred_process(uniqueId, inputPath, mapFunction, reducerFunction,
     # distribute mapper tasks
     logger.info("distibuting tasks among mappers...")
     tasks = []
+    workerQueue = []
     for worker in dataMap["mapperInput"]:
         logger.info("distibuting a task among mapper number %s...", worker)
         p = Process(target=callMapperWorkers,
@@ -151,8 +152,14 @@ def inputDataProcessing(uniqueId, inputPath, dataMap, logger):
     return dataMap
 
 
-def callMapperWorkers(uniqueId, worker, mapFunction, dataMap, logger):
+def callMapperWorkers(uniqueId, worker, mapFunction, dataMap, workerQueue,
+                      logger):
     gcpObj = GCP()
+    taskQueue = []
+    for i in range(len(dataMap["mapperInput"][worker])):
+        taskQueue.append(Queue())
+        taskQueue[i].put()
+
     for i in range(len(dataMap["mapperInput"][worker])):
         logger.info("calling a mapper with task...%s", i)
         #RETREIVE SAVED MAPPER OBJECT
@@ -174,11 +181,14 @@ def callMapperWorkers(uniqueId, worker, mapFunction, dataMap, logger):
                     p = Process(target=workerObj.worker,
                                 args=(uniqueId, worker,
                                       dataMap["mapperInput"][worker][i],
-                                      mapFunction, "mapper", kvIp, i))
+                                      mapFunction, "mapper", kvIp,
+                                      taskQueue[i], i))
                     p.start()
                     p.join()
                     logger.info("waiting for a mapper...")
-                break
+
+                    if (taskQueue[i].get() == "DONE"):
+                        break
             except:
                 continue
 
