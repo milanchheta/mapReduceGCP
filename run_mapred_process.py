@@ -44,7 +44,7 @@ def run_mapred_process(uniqueId, inputPath, mapFunction, reducerFunction,
         logger.info("SPAWNING NEW VMS FOR REDUCERS")
         tasks = []
         workerQueue = []
-        for i in range(dataMap["n_reducers"], dataMap["n_mappers"]):
+        for i in range(dataMap["n_mappers"], dataMap["n_reducers"]):
             workerQueue.append(Queue())
             p = Process(target=spawnSingleWorker,
                         args=(uniqueId, i, workerQueue[i], logger))
@@ -60,7 +60,7 @@ def run_mapred_process(uniqueId, inputPath, mapFunction, reducerFunction,
             dataMap["workerAddress"].append(workerQueue[i].get())
         dataMap["workerName"]
         tasks = []
-        for IP in range(dataMap["n_reducers"], dataMap["n_mappers"]):
+        for IP in range(dataMap["n_mappers"], dataMap["n_reducers"]):
             p = Process(target=waitForWorker,
                         args=(dataMap["workerAddress"], IP, logger))
             p.start()
