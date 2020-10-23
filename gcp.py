@@ -116,12 +116,14 @@ class GCP:
 
     def get_IP_address(self, project, zone, name):
         try:
-            instance = self.compute.instances().get(project=project,
-                                                    zone=zone,
-                                                    instance=name).execute()
-            ext_ip = instance['networkInterfaces'][0]['accessConfigs'][0][
-                'natIP']
-            return ext_ip
+            if (self.isInstanceRunning(project, zone, name)):
+                instance = self.compute.instances().get(
+                    project=project, zone=zone, instance=name).execute()
+                ext_ip = instance['networkInterfaces'][0]['accessConfigs'][0][
+                    'natIP']
+                return ext_ip
+            else:
+                self.startInstance(project, zone, name)
         except Exception as e:
             raise e
 
@@ -151,4 +153,4 @@ class GCP:
 
 # g = GCP()
 # print(g.get_IP_address("milan-chheta", "us-central1-c", "keyvalue-node"))
-# print(g.startInstance("milan-chheta", "us-central1-c", "keyvalue-node"))
+# # print(g.startInstance("milan-chheta", "us-central1-c", "keyvalue-node"))

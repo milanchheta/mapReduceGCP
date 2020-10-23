@@ -82,10 +82,9 @@ def waitForWorker(worker, ip, logger):
                 'http://' + worker[ip] + ':' + parser.get('address', 'rpc'),
                 allow_none=True)
             if (workerObj.isWorkerConnected() == True):
-                break
+                return
         except:
             continue
-    return
 
 
 #init cluster api
@@ -97,7 +96,7 @@ def init_cluster_process(numberOfMappers, numberOfReducers, logger):
 
     logger.info("Assigning IP address for kv store")
     kvIp = connectToKVStore(logger)
-    dataMap["kvIP"] = kvIp
+    # dataMap["kvIP"] = kvIp
     logger.info("Assigned KV ip address")
 
     #CREATE INSTANCES MAPPER EQUALS
@@ -123,19 +122,23 @@ def init_cluster_process(numberOfMappers, numberOfReducers, logger):
     logger.info("Worker nodes started...")
 
     logger.info("Storing data in kv store...")
+    interactWithKv("init " + uniqueId + "\n" + json.dumps(dataMap) + "\n")
+    logger.info("Kv store started....")
+    return uniqueId
+
+
+def interactWithKv(responseMessage):
+    gcpObj = GCP()
     while True:
         try:
-            # initialize by connecting to the kvstore server
+            kvIp = gcpObj.get_IP_address(parser.get('gcp', 'project_id'),
+                                         parser.get('gcp', 'zone'),
+                                         parser.get('address', 'keyValueName'))
             dataStoreObj = xmlrpc.client.ServerProxy(
                 'http://' + kvIp + ':' + parser.get('address', 'rpc'),
                 allow_none=True)
             if (dataStoreObj.isKvStoreConnected() == True):
-                dataStoreObj.DataStore("init " + uniqueId + "\n" +
-                                       json.dumps(dataMap) + "\n")
-                break
+                res = dataStoreObj.DataStore(responseMessage)
+                return res
         except:
-            logger.info("Kv store not yet started....")
-            time.sleep(10)
             continue
-    logger.info("Kv store started....")
-    return uniqueId
