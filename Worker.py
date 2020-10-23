@@ -6,6 +6,10 @@ import json
 from configparser import ConfigParser
 import importlib.util
 import marshal
+from mappers.InvertedIndexMapper import InvertedIndexMapper
+from mappers.WordCountMapper import WordCountMapper
+from reducers.InvertedIndexReducer import InvertedIndexReducer
+from reducers.WordCountReducer import WordCountReducer
 
 # ##InvertedIndex mapper function
 # def InvertedIndexMapper(data, filename):
@@ -84,17 +88,17 @@ def worker(uniqueId, worker, file, passedFunction, caller, kvIP, taskNumber=0):
     logger.info("called worker with funciton %s", passedFunction)
     logger.info("called worker from %s", caller)
 
-    ##function map of available applications
-    # functionMap = {
-    #     "mapper": {
-    #         "InvertedIndexMapper": InvertedIndexMapper,
-    #         "WordCountMapper": WordCountMapper
-    #     },
-    #     "reducer": {
-    #         "InvertedIndexReducer": InvertedIndexReducer,
-    #         "WordCountReducer": WordCountReducer
-    #     }
-    # }
+    #function map of available applications
+    functionMap = {
+        "mapper": {
+            "InvertedIndexMapper.py": InvertedIndexMapper,
+            "WordCountMapper.py": WordCountMapper
+        },
+        "reducer": {
+            "InvertedIndexReducer.py": InvertedIndexReducer,
+            "WordCountReducer.py": WordCountReducer
+        }
+    }
 
     logger.info("creating datastore object")
     ##connect to the keyvaluestore
@@ -103,18 +107,18 @@ def worker(uniqueId, worker, file, passedFunction, caller, kvIP, taskNumber=0):
         allow_none=True)
 
     result = getInputData(file, dataStoreObj)
-    operateFunc = marshal.loads(passedFunction)
+    # operateFunc = marshal.loads(passedFunction)
 
     if caller == "mapper":
         for file in result:
             filename = file
             res = result[filename]
-        # resultData = functionMap[caller][passedFunction](res, filename)
+        resultData = functionMap[caller][passedFunction](res, filename)
         resultData = operateFunc(res, filename)
         path = "Data/" + uniqueId + "/mapperOutput/output" + str(worker) + str(
             taskNumber) + ".json"
     if caller == "reducer":
-        # resultData = functionMap[caller][passedFunction](result)
+        resultData = functionMap[caller][passedFunction](result)
         resultData = operateFunc(res, filename)
         path = "Data/" + uniqueId + "/reducerOutput/output" + str(
             worker) + ".json"
