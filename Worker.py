@@ -10,7 +10,7 @@ from mappers.InvertedIndexMapper import InvertedIndexMapper
 from mappers.WordCountMapper import WordCountMapper
 from reducers.InvertedIndexReducer import InvertedIndexReducer
 from reducers.WordCountReducer import WordCountReducer
-
+import os, stat
 # ##InvertedIndex mapper function
 # def InvertedIndexMapper(data, filename):
 #     logger.info("called WordCountMapper")
@@ -132,6 +132,8 @@ def worker(uniqueId, worker, file, passedFunction, caller, kvIP, taskNumber=0):
 
 
 if __name__ == '__main__':
+    log_dir = './'
+    os.chmod(log_dir, stat.S_IRWXU)
     logger = logging.getLogger('worker-node')
     logger.setLevel(logging.DEBUG)
 
