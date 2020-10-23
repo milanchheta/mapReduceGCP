@@ -5,7 +5,7 @@ from xmlrpc.server import SimpleXMLRPCServer
 from xmlrpc.server import SimpleXMLRPCRequestHandler
 from _thread import *
 import json
-import os
+import os, stat
 import logging
 from configparser import ConfigParser
 
@@ -136,7 +136,7 @@ def initFolders(arguements):
 
 #main keyvalue store function
 def DataStore(message):
-    logger.info("called DataStore", )
+    logger.info("called DataStore")
     message = (message.split('\n'))
     res = []
     for line in message:
@@ -149,6 +149,8 @@ def DataStore(message):
 
 
 if __name__ == '__main__':
+    log_dir = './'
+    os.chmod(log_dir, stat.S_IRWXU)
     logger = logging.getLogger('kvs-node')
     logger.setLevel(logging.DEBUG)
 
