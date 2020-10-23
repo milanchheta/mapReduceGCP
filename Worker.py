@@ -79,7 +79,7 @@ def worker(uniqueId, worker, file, passedFunction, caller, kvIP, taskNumber=0):
         result = getInputData(file, dataStoreObj)
         # operateFunc = marshal.loads(passedFunction)
         if i == 1:
-            logger.info("Simulating fault tolerance test")
+            logger.info("Simulating fault tolerance test %s", i)
             raise Exception('Simulating fault tolerance test')
         i += 1
         if caller == "mapper":
@@ -109,6 +109,7 @@ def worker(uniqueId, worker, file, passedFunction, caller, kvIP, taskNumber=0):
         if i == 1:
             logger.info("Simulated fault tolerance test")
             workerStatus = "ERROR"
+        i += 1
         raise e
 
 
