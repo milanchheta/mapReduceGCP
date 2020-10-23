@@ -184,7 +184,8 @@ def callMapperWorkers(uniqueId, worker, mapFunction, dataMap, logger):
                         print("finished a task")
                         break
                     print("restarting")
-            except:
+            except Exception as e:
+                print("restarting e")
                 continue
 
     logger.info("tasks for a mapper is done...")
