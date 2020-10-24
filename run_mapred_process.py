@@ -68,6 +68,7 @@ def run_mapred_process(uniqueId, inputPath, mapFunction, reducerFunction,
         tasks.append(p)
         for task in tasks:
             task.join()
+
     elif (dataMap["n_reducers"] < dataMap["n_mappers"]):
         logger.info("DELETING EXTRA VMS")
         for i in range(dataMap["n_reducers"], dataMap["n_mappers"]):
@@ -279,8 +280,6 @@ def intermediateCombiner(uniqueId, dataMap, logger):
 
 def callReducerWorkers(uniqueId, worker, reducerFunction, dataMap, logger):
     gcpObj = GCP()
-
-    # for worker in range(dataMap["n_reducers"]):
 
     while True:
         logger.info("CALLING REDUCER: %s", worker)

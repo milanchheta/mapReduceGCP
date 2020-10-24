@@ -36,6 +36,9 @@ class GCP:
             name,
             'machineType':
             machine_type,
+            'scheduling': {
+                'preemptible': True
+            },
 
             # Specify the boot disk and the image to use as a source.
             'disks': [{
