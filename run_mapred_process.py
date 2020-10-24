@@ -94,6 +94,7 @@ def run_mapred_process(uniqueId, inputPath, mapFunction, reducerFunction,
     logger.info("ALL REDUCERS TASKS DONE WITH EXECUTION TIME: %s",
                 time.time() - start_time)
 
+    logger.info("DELETING ALL VMS")
     for i in range(dataMap["n_reducers"]):
         gcpObj.delete_instance(parser.get('gcp', 'project_id'),
                                parser.get('gcp', 'zone'),
@@ -101,7 +102,6 @@ def run_mapred_process(uniqueId, inputPath, mapFunction, reducerFunction,
 
     # combine and store reducer outbut
     res = combineAndStoreReducerOutput(uniqueId, outputPath, dataMap, logger)
-    logger.info("DELETING ALL VMS")
 
     return res
 
@@ -116,7 +116,6 @@ def inputDataProcessing(uniqueId, inputPath, dataMap, logger):
 
     #generate chunks for given input data
     #from directory
-    print(inputPath)
     if (os.path.isdir(inputPath)):
         allFiles = os.listdir(inputPath)
         i = 0
