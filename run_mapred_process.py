@@ -116,6 +116,7 @@ def inputDataProcessing(uniqueId, inputPath, dataMap, logger):
 
     #generate chunks for given input data
     #from directory
+    print(inputPath)
     if (os.path.isdir(inputPath)):
         allFiles = os.listdir(inputPath)
         i = 0
